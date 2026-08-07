@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <title>おみ句じ句帳 - 風月</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="句帳 風月">
+    <meta name="application-name" content="句帳 風月">
+    <meta name="theme-color" content="#faf9f6">
+    
+    <link rel="icon" type="image/png" sizes="192x192" href="icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+    <link rel="manifest" href="manifest.json">
+
+    <!-- デザインファイルの読み込み -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 🖋️ ステップ1：句の入力画面 -->
+    <div id="step1" class="step-screen active">
+        <div class="step-title">【一】 句の入力</div>
+        <div class="input-screen-content">
+            <div class="input-dock">
+                <input type="text" id="inputPhrase" class="dock-input" placeholder="ここに一句入力してください" autocomplete="off" autofocus>
+            </div>
+            <div class="btn-group">
+                <button class="btn" onclick="goToStep2()">次へ（季語確認）</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🏷️ ステップ2：季語・作者確認画面 -->
+    <div id="step2" class="step-screen">
+        <div class="step-title">【二】 季語・作者の確認</div>
+        <div class="step2-content">
+            <div class="kigo-check-card">
+                <div class="kigo-prompt">
+                    自動検出された季語<br>
+                    <div id="detectedKigoText" style="margin-top: 5px; font-weight: bold;"></div>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="form-label">季語（親季語）</label>
+                    <input type="text" id="kigoInput" class="text-input" placeholder="例：酉の市、桜" onblur="checkAndHokanKigoData()">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">季節</label>
+                    <select id="seasonSelect" class="text-input">
+                        <option value="haru">春</option>
+                        <option value="natsu">夏</option>
+                        <option value="aki">秋</option>
+                        <option value="huyu">冬</option>
+                        <option value="shinnen">新年</option>
+                        <option value="muki">無季</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">詳細季節</label>
+                    <select id="detailSeasonSelect" class="text-input">
+                        <option value="">（選択なし）</option>
+                        <option value="新年">新年</option>
+                        <option value="初春">初春</option>
+                        <option value="仲春">仲春</option>
+                        <option value="晩春">晩春</option>
+                        <option value="三春">三春</option>
+                        <option value="初夏">初夏</option>
+                        <option value="仲夏">仲夏</option>
+                        <option value="晩夏">晩夏</option>
+                        <option value="三夏">三夏</option>
+                        <option value="初秋">初秋</option>
+                        <option value="仲秋">仲秋</option>
+                        <option value="晩秋">晩秋</option>
+                        <option value="三秋">三秋</option>
+                        <option value="初冬">初冬</option>
+                        <option value="仲冬">仲冬</option>
+                        <option value="晩冬">晩冬</option>
+                        <option value="三冬">三冬</option>
+                        <option value="暮">暮</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
+                    <label class="form-label">作者名</label>
+                    <input type="text" id="authorInput" class="text-input" list="authorList" placeholder="西田亮太" oninput="onAuthorInputChanged()" onchange="onAuthorNameChange()">
+                    <datalist id="authorList"></datalist>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">作者名（よみがな）</label>
+                    <input type="text" id="authorKanaInput" class="text-input" list="authorKanaList" placeholder="にしだりょうた" oninput="onAuthorKanaInputChanged()">
+                    <datalist id="authorKanaList"></datalist>
+                </div>
+            </div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-outline" onclick="goToStep(1)">戻る</button>
+            <button class="btn" onclick="goToStep3()">プレビューへ</button>
+        </div>
+    </div>
+
+    <!-- 👁️ ステップ3：登録プレビュー -->
+    <div id="step3" class="step-screen">
+        <div class="step-title">【三】 登録プレビュー</div>
+        
+        <div class="global-header-area">
+            <div class="header-row-top">
+                <div id="previewBreadcrumb" class="breadcrumb"></div>
+            </div>
+            <div class="header-row-bottom">
+                <div id="previewAuthor" class="info-upper-tag"></div>
+            </div>
+        </div>
+
+        <div class="preview-screen-content">
+            <div class="haiku-screen">
+                <div id="previewPhrase" class="phrase"></div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-outline" onclick="goToStep(2)">修正する</button>
+            <button id="submitBtn" class="btn" onclick="submitHaiku()">登録する</button>
+        </div>
+    </div>
+
+    <!-- 🎉 ステップ4：完了画面 -->
+    <div id="step4" class="step-screen">
+        <div class="step2-content" style="text-align: center;">
+            <h2 style="font-size: 1.4rem; color: #2b2b2b; margin-bottom: 10px; font-weight: 500;">登録が完了しました</h2>
+            <p style="font-size: 0.9rem; color: #666; line-height: 1.6;">句帳（スプレッドシート）へ保存されました。</p>
+        </div>
+        <div class="btn-group">
+            <button class="btn" onclick="resetForm()">続けて次の句を入力</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
