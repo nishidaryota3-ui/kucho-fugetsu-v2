@@ -31,7 +31,6 @@ window.onload = function() {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
 
-    // デフォルトで作句日付に「今日」をセット
     const todayInput = document.getElementById('sakkuDateInput');
     if (todayInput) {
         todayInput.value = new Date().toISOString().split('T')[0];
@@ -55,7 +54,7 @@ function restoreCachedMasterData() {
 /* メインの「俳句集成」シートからデータ全取得 */
 function fetchMainHaikuData() {
     const script = document.createElement('script');
-    script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?range=A:L&tqx=responseHandler:mainDataReceived`;
+    script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?range=A:L&tqx=responseHandler:mainDataReceived&_=${new Date().getTime()}`;
     document.body.appendChild(script);
 }
 
@@ -158,7 +157,6 @@ function updateAuthorDatalist() {
     });
 }
 
-/* ナビゲーション関数 */
 function goToStartScreen() {
     document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
     document.getElementById('startScreen').classList.add('active');
@@ -183,7 +181,6 @@ function switchReadTab(status) {
     renderYomuList();
 }
 
-/* 「西田上酢」の作品だけを一覧表示 */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
@@ -278,7 +275,6 @@ function onAuthorNameChange() {
 function onAuthorInputChanged() { onAuthorNameChange(); }
 function onAuthorKanaInputChanged() {}
 
-/* 【修正】ステップ2からステップ3（プレビュー）へ進む際に入力欄の値をすべて取得する */
 function goToStep3() {
     const inputKigoVal = document.getElementById('kigoInput').value.trim();
     let hit = saijikiDatabase.find(item => item.kigo === inputKigoVal || item.parentKigo === inputKigoVal);
@@ -288,7 +284,6 @@ function goToStep3() {
     currentHaikuData.season = document.getElementById('seasonSelect').value;
     currentHaikuData.detailSeason = document.getElementById('detailSeasonSelect').value;
     
-    // 作者名・作者よみがな・作句日付を入力欄から確実に取得（空ならデフォルト値）
     const authorVal = document.getElementById('authorInput').value.trim();
     const authorKanaVal = document.getElementById('authorKanaInput').value.trim();
     const dateVal = document.getElementById('sakkuDateInput').value;
@@ -310,11 +305,10 @@ function goToStep3() {
     goToStep(3);
 }
 
-/* 【修正】送信実行処理 */
+/* 確実な送信処理（URLSearchParams形式） */
 function submitHaiku(statusType) {
     currentHaikuData.status = statusType;
 
-    // 最新のフォームの値を再確認してセット
     const authorVal = document.getElementById('authorInput').value.trim();
     const authorKanaVal = document.getElementById('authorKanaInput').value.trim();
     const dateVal = document.getElementById('sakkuDateInput').value;
@@ -328,34 +322,31 @@ function submitHaiku(statusType) {
         parentKana: currentHaikuData.parentKana,
         season: currentHaikuData.season,
         detailSeason: currentHaikuData.detailSeason,
-        status: statusType,                                    // K列へ（完成句/下書き）
-        sakkuDate: dateVal || currentHaikuData.sakkuDate,      // L列へ（作句日付）
-        timestamp: new Date().toISOString()
+        status: statusType,
+        sakkuDate: dateVal || currentHaikuData.sakkuDate
     };
 
     const compTitle = document.getElementById('completeTitle');
     if (compTitle) compTitle.innerText = `${statusType}として保存しました`;
 
-    if (navigator.onLine) {
-        sendToGas(payload).then(() => {
-            fetchMainHaikuData(); // 送信成功後にリストを最新状態に再読み込み
-            goToStep(4);
-        }).catch(() => {
-            saveToOfflineQueue(payload);
-            goToStep(4);
-        });
-    } else {
-        saveToOfflineQueue(payload);
-        goToStep(4);
+    // FormData形式に変換して送信
+    const params = new URLSearchParams();
+    for (let key in payload) {
+        params.append(key, payload[key]);
     }
-}
 
-function sendToGas(data) {
-    return fetch(GAS_WEB_APP_URL, {
+    fetch(GAS_WEB_APP_URL, {
         method: 'POST',
         mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    }).then(() => {
+        setTimeout(fetchMainHaikuData, 1000); // 1秒後に最新一覧を再読み込み
+        goToStep(4);
+    }).catch(err => {
+        console.error(err);
+        saveToOfflineQueue(payload);
+        goToStep(4);
     });
 }
 
@@ -376,10 +367,19 @@ function processOfflineQueue() {
         if (!stored) return;
         let queue = JSON.parse(stored);
         if (queue.length === 0) return;
-        Promise.all(queue.map(item => sendToGas(item))).then(() => {
-            localStorage.removeItem('hugetsu_offline_queue');
-            fetchMainHaikuData();
+        
+        queue.forEach(item => {
+            const params = new URLSearchParams();
+            for (let key in item) params.append(key, item[key]);
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params.toString()
+            });
         });
+        localStorage.removeItem('hugetsu_offline_queue');
+        setTimeout(fetchMainHaikuData, 1000);
     } catch (e) {}
 }
 
