@@ -26,14 +26,24 @@ let currentHaikuData = {
     status: '完成句'
 };
 
+// ローカル（端末）の今日の日付を YYYY-MM-DD 形式で取得する関数
+function getTodayDateString() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
 window.onload = function() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
 
+    // 今日の日付をカレンダーの初期値にセット
     const todayInput = document.getElementById('sakkuDateInput');
     if (todayInput) {
-        todayInput.value = new Date().toISOString().split('T')[0];
+        todayInput.value = getTodayDateString();
     }
 
     restoreCachedMasterData();
@@ -290,7 +300,7 @@ function goToStep3() {
 
     currentHaikuData.author = authorVal || '西田上酢';
     currentHaikuData.authorKana = authorKanaVal || 'にしだ じょうす';
-    currentHaikuData.sakkuDate = dateVal || new Date().toISOString().split('T')[0];
+    currentHaikuData.sakkuDate = dateVal || getTodayDateString();
 
     document.getElementById('previewPhrase').innerText = currentHaikuData.phrase;
     document.getElementById('previewAuthor').innerText = currentHaikuData.author;
@@ -323,7 +333,7 @@ function submitHaiku(statusType) {
         season: currentHaikuData.season,
         detailSeason: currentHaikuData.detailSeason,
         status: statusType,
-        sakkuDate: dateVal || currentHaikuData.sakkuDate
+        sakkuDate: dateVal || currentHaikuData.sakkuDate || getTodayDateString()
     };
 
     const compTitle = document.getElementById('completeTitle');
