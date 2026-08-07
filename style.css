@@ -15,6 +15,42 @@ body, html {
 }
 .step-screen.active { display: flex !important; }
 
+/* 🚪 スタート画面デザイン */
+.start-menu-container {
+    flex: 1; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; gap: 40px; width: 100%; max-width: 360px;
+}
+.app-title { font-size: 2.2rem; font-weight: 500; letter-spacing: 0.3em; color: #2b2b2b; }
+.start-btn-group { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+.mode-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 20px; border-radius: 12px; border: 1px solid #dcd9d0; background: #ffffff;
+    cursor: pointer; transition: transform 0.1s, background-color 0.2s;
+}
+.mode-btn:active { transform: scale(0.98); }
+.mode-btn.primary { background: #2b2b2b; color: #faf9f6; border-color: #2b2b2b; }
+.mode-title { font-size: 1.4rem; font-weight: 600; letter-spacing: 0.2em; margin-bottom: 4px; }
+.mode-sub { font-size: 0.75rem; opacity: 0.7; font-family: sans-serif; letter-spacing: 0.05em; }
+
+/* 📖 「読む」画面リストデザイン */
+.read-tab-group { display: flex; gap: 10px; width: 100%; max-width: 400px; margin-bottom: 12px; }
+.read-tab {
+    flex: 1; padding: 10px 0; border: 1px solid #ccc; background: transparent;
+    border-radius: 20px; font-family: inherit; font-size: 0.9rem; cursor: pointer;
+}
+.read-tab.active { background: #2b2b2b; color: #faf9f6; border-color: #2b2b2b; }
+.read-list-container {
+    flex: 1; width: 100%; max-width: 400px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 12px; padding-right: 4px;
+}
+.haiku-card {
+    background: #ffffff; border: 1px solid #eae8e3; border-radius: 8px;
+    padding: 16px; display: flex; flex-direction: column; gap: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+}
+.haiku-card-phrase { font-size: 1.2rem; letter-spacing: 0.1em; line-height: 1.5; color: #2b2b2b; }
+.haiku-card-meta { font-size: 0.8rem; color: #888; display: flex; justify-content: space-between; font-family: sans-serif; }
+
 /* ステップ見出し */
 .step-title {
     font-size: 0.95rem; color: #8c8476; letter-spacing: 0.15em; text-align: center; width: 100%;
@@ -24,16 +60,13 @@ body, html {
 /* 🖋️ ステップ1：入力画面 */
 .input-screen-content {
     flex: 1; width: 100%; display: flex; flex-direction: column;
-    justify-content: flex-start; align-items: center; gap: 15px;
-    padding-top: 10px;
+    justify-content: flex-start; align-items: center; gap: 15px; padding-top: 10px;
 }
-
 .input-dock {
     width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 12px;
     background: #ffffff; border: 1px solid #eae8e3; border-radius: 12px;
     padding: 18px 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.04);
 }
-
 .dock-input {
     width: 100%; border: none; outline: none; font-size: 1.1rem;
     font-family: inherit; background: transparent; color: #2b2b2b;
@@ -51,61 +84,40 @@ body, html {
     box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
 .kigo-prompt { font-size: 1.05rem; color: #2b2b2b; margin-bottom: 0.8rem; line-height: 1.6; }
-.kigo-prompt span { font-weight: bold; border-bottom: 1px solid #2b2b2b; padding-bottom: 2px; }
-
 .form-group { margin-top: 0.8rem; text-align: left; }
 .form-label { font-size: 0.8rem; color: #777; margin-bottom: 0.2rem; display: block; }
 .text-input {
     width: 100%; padding: 8px 10px; font-size: 0.95rem; font-family: inherit;
     border: 1px solid #ccc; border-radius: 4px; outline: none; background: #faf9f6;
 }
-.text-input:focus { border-color: #2b2b2b; background: #fff; }
 
 /* 👁️ ステップ3：プレビュー領域 */
 .preview-screen-content {
     position: relative; flex: 1; width: 100%;
-    display: flex; justify-content: center; align-items: center;
-    overflow: hidden;
+    display: flex; justify-content: center; align-items: center; overflow: hidden;
 }
-
-/* 🧭 グローバルヘッダー */
 .global-header-area {
-    position: relative; /* absoluteから変更し、通常のフローに配置 */
-    width: 100%; /* 横幅を画面いっぱいに */
-    margin-top: 10px; /* 見出しとの間に少し余白 */
-    display: flex;
-    flex-direction: column;
-    gap: 12px; /* パンくずリストと作者名の間隔 */
-    z-index: 30;
-    pointer-events: none;
+    position: relative; width: 100%; margin-top: 10px;
+    display: flex; flex-direction: column; gap: 12px; z-index: 30; pointer-events: none;
 }
-
 .header-row-top { display: flex; justify-content: flex-start; width: 100%; }
 .header-row-bottom { display: flex; justify-content: flex-end; align-items: center; width: 100%; min-height: 24px; }
-
 .breadcrumb {
     font-size: 0.82rem; color: #666666; letter-spacing: 0.05em;
     display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.4rem;
     line-height: 1.4; pointer-events: auto; max-width: 100%;
 }
 .breadcrumb span.separator { color: #b5b5b5; font-family: sans-serif; }
-
 .info-upper-tag {
     font-size: 0.95rem; color: #2b2b2b; letter-spacing: 0.05em; font-weight: 500;
     white-space: nowrap; text-align: right; pointer-events: auto;
     display: flex; flex-direction: column; align-items: flex-end;
 }
-
-.haiku-screen { 
-    height: 100%; width: 100%; display: flex; 
-    justify-content: center; align-items: center; flex-direction: column; 
-}
-
+.haiku-screen { height: 100%; width: 100%; display: flex; justify-content: center; align-items: center; flex-direction: column; }
 .phrase {
     writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;
-    font-size: 3.2vh; line-height: 1.0;
-    letter-spacing: 0.3em; font-weight: 500; white-space: nowrap; 
-    text-align: center; display: block;
+    font-size: 3.2vh; line-height: 1.0; letter-spacing: 0.3em;
+    font-weight: 500; white-space: nowrap; text-align: center; display: block;
 }
 
 /* 🔘 ボタンデザイン */
@@ -118,4 +130,3 @@ body, html {
 }
 .btn:active { transform: scale(0.98); }
 .btn-outline { background-color: transparent; color: #555; border: 1px solid #b5b5b5; }
-.btn:disabled { background-color: #ccc; cursor: not-allowed; }
