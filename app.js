@@ -32,8 +32,10 @@ window.onload = function() {
     }
 
     // デフォルトで作句日付に「今日」をセット
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('sakkuDateInput').value = today;
+    const todayInput = document.getElementById('sakkuDateInput');
+    if (todayInput) {
+        todayInput.value = new Date().toISOString().split('T')[0];
+    }
 
     restoreCachedMasterData();
     fetchMainHaikuData();
@@ -50,10 +52,9 @@ function restoreCachedMasterData() {
     } catch (e) {}
 }
 
-/* メインの「俳句集成」シートからデータ全取得（作者リスト生成＆西田上酢作品の抽出用） */
+/* メインの「俳句集成」シートからデータ全取得 */
 function fetchMainHaikuData() {
     const script = document.createElement('script');
-    // A~L列まで取得
     script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?range=A:L&tqx=responseHandler:mainDataReceived`;
     document.body.appendChild(script);
 }
@@ -74,8 +75,8 @@ window.mainDataReceived = function(data) {
             const phrase = getVal(0);
             const author = getVal(1);
             const authorKana = getVal(2);
-            const status = getVal(10) || '完成句'; // K列（11番目）
-            const sakkuDate = getVal(11);          // L列（12番目）
+            const status = getVal(10) || '完成句'; // K列
+            const sakkuDate = getVal(11);          // L列
 
             if (phrase && phrase !== '俳句' && phrase !== '句') {
                 haikuHistory.push({
@@ -165,7 +166,8 @@ function goToStartScreen() {
 
 function startEmuMode() {
     goToStep(1);
-    document.getElementById('inputPhrase').focus();
+    const input = document.getElementById('inputPhrase');
+    if (input) input.focus();
 }
 
 function startYomuMode() {
@@ -184,9 +186,9 @@ function switchReadTab(status) {
 /* 「西田上酢」の作品だけを一覧表示 */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
+    if (!container) return;
     container.innerHTML = '';
 
-    // 「西田上酢」かつ「選択中のステータス（完成句/下書き）」の句を抽出
     const myHaikus = haikuHistory.filter(h => h.author === '西田上酢' && h.status === currentReadTab);
 
     if (myHaikus.length === 0) {
@@ -276,6 +278,7 @@ function onAuthorNameChange() {
 function onAuthorInputChanged() { onAuthorNameChange(); }
 function onAuthorKanaInputChanged() {}
 
+/* 【修正】ステップ2からステップ3（プレビュー）へ進む際に入力欄の値をすべて取得する */
 function goToStep3() {
     const inputKigoVal = document.getElementById('kigoInput').value.trim();
     let hit = saijikiDatabase.find(item => item.kigo === inputKigoVal || item.parentKigo === inputKigoVal);
@@ -284,9 +287,15 @@ function goToStep3() {
     currentHaikuData.kigo = (hit && hit.kigo !== hit.parentKigo) ? hit.kigo : inputKigoVal;
     currentHaikuData.season = document.getElementById('seasonSelect').value;
     currentHaikuData.detailSeason = document.getElementById('detailSeasonSelect').value;
-    currentHaikuData.author = document.getElementById('authorInput').value.trim() || '西田上酢';
-    currentHaikuData.authorKana = document.getElementById('authorKanaInput').value.trim();
-    currentHaikuData.sakkuDate = document.getElementById('sakkuDateInput').value;
+    
+    // 作者名・作者よみがな・作句日付を入力欄から確実に取得（空ならデフォルト値）
+    const authorVal = document.getElementById('authorInput').value.trim();
+    const authorKanaVal = document.getElementById('authorKanaInput').value.trim();
+    const dateVal = document.getElementById('sakkuDateInput').value;
+
+    currentHaikuData.author = authorVal || '西田上酢';
+    currentHaikuData.authorKana = authorKanaVal || 'にしだ じょうす';
+    currentHaikuData.sakkuDate = dateVal || new Date().toISOString().split('T')[0];
 
     document.getElementById('previewPhrase').innerText = currentHaikuData.phrase;
     document.getElementById('previewAuthor').innerText = currentHaikuData.author;
@@ -301,27 +310,37 @@ function goToStep3() {
     goToStep(3);
 }
 
+/* 【修正】送信実行処理 */
 function submitHaiku(statusType) {
     currentHaikuData.status = statusType;
 
+    // 最新のフォームの値を再確認してセット
+    const authorVal = document.getElementById('authorInput').value.trim();
+    const authorKanaVal = document.getElementById('authorKanaInput').value.trim();
+    const dateVal = document.getElementById('sakkuDateInput').value;
+
     const payload = {
         phrase: currentHaikuData.phrase,
-        author: currentHaikuData.author,
-        authorKana: currentHaikuData.authorKana,
+        author: authorVal || currentHaikuData.author || '西田上酢',
+        authorKana: authorKanaVal || currentHaikuData.authorKana || 'にしだ じょうす',
         kigo: currentHaikuData.kigo || currentHaikuData.parentKigo,
         parentKigo: currentHaikuData.parentKigo,
         parentKana: currentHaikuData.parentKana,
         season: currentHaikuData.season,
         detailSeason: currentHaikuData.detailSeason,
-        status: currentHaikuData.status,      // K列へ（完成句/下書き）
-        sakkuDate: currentHaikuData.sakkuDate, // L列へ（作句日付）
+        status: statusType,                                    // K列へ（完成句/下書き）
+        sakkuDate: dateVal || currentHaikuData.sakkuDate,      // L列へ（作句日付）
         timestamp: new Date().toISOString()
     };
 
-    document.getElementById('completeTitle').innerText = `${statusType}として保存しました`;
+    const compTitle = document.getElementById('completeTitle');
+    if (compTitle) compTitle.innerText = `${statusType}として保存しました`;
 
     if (navigator.onLine) {
-        sendToGas(payload).then(() => goToStep(4)).catch(() => {
+        sendToGas(payload).then(() => {
+            fetchMainHaikuData(); // 送信成功後にリストを最新状態に再読み込み
+            goToStep(4);
+        }).catch(() => {
             saveToOfflineQueue(payload);
             goToStep(4);
         });
@@ -333,7 +352,8 @@ function submitHaiku(statusType) {
 
 function sendToGas(data) {
     return fetch(GAS_WEB_APP_URL, {
-        method: 'POST', mode: 'no-cors',
+        method: 'POST',
+        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     });
@@ -358,6 +378,7 @@ function processOfflineQueue() {
         if (queue.length === 0) return;
         Promise.all(queue.map(item => sendToGas(item))).then(() => {
             localStorage.removeItem('hugetsu_offline_queue');
+            fetchMainHaikuData();
         });
     } catch (e) {}
 }
