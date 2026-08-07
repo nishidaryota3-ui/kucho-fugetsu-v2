@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>おみ句じ句帳 - 風月</title>
+    <title>おみ句じ句帳 - 風月 v2</title>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -21,22 +21,58 @@
 </head>
 <body>
 
-    <!-- 🖋️ ステップ1：句の入力画面 -->
-    <div id="step1" class="step-screen active">
+    <!-- 🚪 スタート画面（「読む」「詠む」の選択） -->
+    <div id="startScreen" class="step-screen active">
+        <div class="start-menu-container">
+            <h1 class="app-title">風月</h1>
+            <div class="start-btn-group">
+                <button class="mode-btn" onclick="startYomuMode()">
+                    <span class="mode-title">読む</span>
+                    <span class="mode-sub">西田上酢の作品鑑賞・推敲</span>
+                </button>
+                <button class="mode-btn primary" onclick="startEmuMode()">
+                    <span class="mode-title">詠む</span>
+                    <span class="mode-sub">新しい句を投句・記録する</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📖 「読む」画面（西田上酢作品の閲覧） -->
+    <div id="readScreen" class="step-screen">
+        <div class="step-title">【西田上酢 句帳】</div>
+        
+        <div class="read-tab-group">
+            <button id="tabKansei" class="read-tab active" onclick="switchReadTab('完成句')">完成句</button>
+            <button id="tabShitagaki" class="read-tab" onclick="switchReadTab('下書き')">下書き</button>
+        </div>
+
+        <div id="readHaikuList" class="read-list-container">
+            <!-- JSで動的に「西田上酢」の句が挿入されます -->
+        </div>
+
+        <div class="btn-group" style="margin-top: 10px;">
+            <button class="btn btn-outline" onclick="goToStartScreen()">最初の画面に戻る</button>
+        </div>
+    </div>
+
+    <!-- 🖋️ ステップ1：句の入力画面（詠む） -->
+    <div id="step1" class="step-screen">
         <div class="step-title">【一】 句の入力</div>
         <div class="input-screen-content">
             <div class="input-dock">
-                <input type="text" id="inputPhrase" class="dock-input" placeholder="ここに一句入力してください" autocomplete="off" autofocus>
+                <input type="text" id="inputPhrase" class="dock-input" placeholder="ここに一句入力してください" autocomplete="off">
             </div>
             <div class="btn-group">
+                <button class="btn btn-outline" onclick="goToStartScreen()">戻る</button>
                 <button class="btn" onclick="goToStep2()">次へ（季語確認）</button>
             </div>
         </div>
     </div>
 
-    <!-- 🏷️ ステップ2：季語・作者確認画面 -->
+    <!-- 🏷️ ステップ2：季語・作者・日付確認画面 -->
     <div id="step2" class="step-screen">
-        <div class="step-title">【二】 季語・作者の確認</div>
+        <div class="step-title">【二】 季語・作者・作句日の確認</div>
         <div class="step2-content">
             <div class="kigo-check-card">
                 <div class="kigo-prompt">
@@ -88,14 +124,19 @@
 
                 <div class="form-group" style="margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
                     <label class="form-label">作者名</label>
-                    <input type="text" id="authorInput" class="text-input" list="authorList" placeholder="西田亮太" oninput="onAuthorInputChanged()" onchange="onAuthorNameChange()">
+                    <input type="text" id="authorInput" class="text-input" list="authorList" placeholder="西田上酢" oninput="onAuthorInputChanged()" onchange="onAuthorNameChange()">
                     <datalist id="authorList"></datalist>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">作者名（よみがな）</label>
-                    <input type="text" id="authorKanaInput" class="text-input" list="authorKanaList" placeholder="にしだりょうた" oninput="onAuthorKanaInputChanged()">
+                    <input type="text" id="authorKanaInput" class="text-input" list="authorKanaList" placeholder="にしだ じょうす" oninput="onAuthorKanaInputChanged()">
                     <datalist id="authorKanaList"></datalist>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
+                    <label class="form-label">作句日付</label>
+                    <input type="date" id="sakkuDateInput" class="text-input">
                 </div>
             </div>
         </div>
@@ -124,19 +165,23 @@
             </div>
         </div>
 
-        <div class="btn-group">
-            <button class="btn btn-outline" onclick="goToStep(2)">修正する</button>
-            <button id="submitBtn" class="btn" onclick="submitHaiku()">登録する</button>
+        <div class="btn-group" style="flex-direction: column; gap: 8px;">
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <button id="submitKanseiBtn" class="btn" onclick="submitHaiku('完成句')">完成句</button>
+                <button id="submitShitagakiBtn" class="btn btn-outline" onclick="submitHaiku('下書き')">下書き</button>
+            </div>
+            <button class="btn btn-outline" style="border: none; color: #888; padding: 6px 0;" onclick="goToStep(2)">← 修正する</button>
         </div>
     </div>
 
     <!-- 🎉 ステップ4：完了画面 -->
     <div id="step4" class="step-screen">
         <div class="step2-content" style="text-align: center;">
-            <h2 style="font-size: 1.4rem; color: #2b2b2b; margin-bottom: 10px; font-weight: 500;">登録が完了しました</h2>
+            <h2 id="completeTitle" style="font-size: 1.4rem; color: #2b2b2b; margin-bottom: 10px; font-weight: 500;">登録が完了しました</h2>
             <p style="font-size: 0.9rem; color: #666; line-height: 1.6;">句帳（スプレッドシート）へ保存されました。</p>
         </div>
         <div class="btn-group">
+            <button class="btn btn-outline" onclick="goToStartScreen()">最初の画面へ</button>
             <button class="btn" onclick="resetForm()">続けて次の句を入力</button>
         </div>
     </div>
