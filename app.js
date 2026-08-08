@@ -7,11 +7,13 @@ const SAIJIKI_SPREADSHEET_ID = '1EOmZn53hFA8GpVdcn--aU-lj9uHjGQpnSZ1o9jbnsYs';
 // Webアプリ（GAS）のURL
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwgm4eh8qZGRxvFS8_b8iEJAC9vRGw31gOvjgsPQMPc1ymU4oKonErvUkL0Ucf6xnZO/exec';
 
-let saijikiDatabase = []; // 歳時記データベース
-let authorDatabase = [];  // 作者マスター
-let haikuHistory = [];    // 読み込んだ全俳句データ
+let saijikiDatabase = []; 
+let authorDatabase = [];  
+let haikuHistory = [];    
 
-let currentReadTab = '完成句'; // 「読む」画面の初期タブ
+let currentReadTab = '完成句'; 
+let editingDraftHaiku = null; // ⑤ 下書き編集時の元の句オブジェクト
+let activeSelectedHaiku = null; // 案1 モーダルで選択中の句
 
 let currentHaikuData = {
     phrase: '',
@@ -21,12 +23,11 @@ let currentHaikuData = {
     season: 'haru',
     detailSeason: '',
     author: '西田上酢',
-    authorKana: 'にしだ じょうす',
+    authorKana: 'にしだうえす',
     sakkuDate: '',
     status: '完成句'
 };
 
-// ローカル（端末）の今日の日付を YYYY-MM-DD 形式で取得する関数
 function getTodayDateString() {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -40,7 +41,6 @@ window.onload = function() {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
 
-    // 今日の日付をカレンダーの初期値にセット
     const todayInput = document.getElementById('sakkuDateInput');
     if (todayInput) {
         todayInput.value = getTodayDateString();
@@ -103,6 +103,11 @@ window.mainDataReceived = function(data) {
 
         authorDatabase = Object.keys(authorMap).map(name => ({ name, kana: authorMap[name] }));
         updateAuthorDatalist();
+
+        // 読む画面が開いている場合は再描写
+        if (document.getElementById('readScreen').classList.contains('active')) {
+            renderYomuList();
+        }
     } catch (e) {
         console.error('メインデータ解析エラー', e);
     }
@@ -167,15 +172,29 @@ function updateAuthorDatalist() {
     });
 }
 
+/* ナビゲーション関数 */
 function goToStartScreen() {
     document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
     document.getElementById('startScreen').classList.add('active');
 }
 
 function startEmuMode() {
+    editingDraftHaiku = null; // 新規入力
+    document.getElementById('inputPhrase').value = '';
+    document.getElementById('authorInput').value = '西田上酢';
+    document.getElementById('authorKanaInput').value = 'にしだうえす';
     goToStep(1);
     const input = document.getElementById('inputPhrase');
     if (input) input.focus();
+}
+
+/* ⑤ 下書きのキャンセル・戻る処理 */
+function cancelEmuMode() {
+    if (editingDraftHaiku) {
+        startYomuMode(); // 下書き編集から戻った場合は「読む」画面へ
+    } else {
+        goToStartScreen();
+    }
 }
 
 function startYomuMode() {
@@ -191,6 +210,7 @@ function switchReadTab(status) {
     renderYomuList();
 }
 
+/* ③＆④ 「西田上酢」の作品を縦書き一覧で表示 */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
@@ -199,22 +219,63 @@ function renderYomuList() {
     const myHaikus = haikuHistory.filter(h => h.author === '西田上酢' && h.status === currentReadTab);
 
     if (myHaikus.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:#888; margin-top:40px;">登録された${currentReadTab}はありません。</div>`;
+        container.innerHTML = `<div style="text-align:center; color:#888; margin:auto;">登録された${currentReadTab}はありません。</div>`;
         return;
     }
 
     myHaikus.forEach(item => {
         const card = document.createElement('div');
-        card.className = 'haiku-card';
-        card.innerHTML = `
-            <div class="haiku-card-phrase">${item.phrase}</div>
-            <div class="haiku-card-meta">
-                <span>季語: ${item.parentKigo || '無季'}</span>
-                <span>${item.sakkuDate ? item.sakkuDate : ''}</span>
-            </div>
-        `;
+        card.className = 'saijiki-haiku-card';
+        card.onclick = () => openHaikuDetailModal(item);
+        card.innerHTML = `<div class="saijiki-phrase">${item.phrase}</div>`;
         container.appendChild(card);
     });
+
+    requestAnimationFrame(() => {
+        container.scrollLeft = 0;
+    });
+}
+
+/* 案1：タップ時のポップアップ表示 */
+function openHaikuDetailModal(haikuObj) {
+    activeSelectedHaiku = haikuObj;
+    document.getElementById('modalPhrase').innerText = haikuObj.phrase;
+    document.getElementById('modalDate').innerText = haikuObj.sakkuDate ? `作句日：${haikuObj.sakkuDate}` : '作句日：未登録';
+    
+    // 下書きタブの場合のみ「編集ボタン」を表示
+    const actionArea = document.getElementById('modalActionArea');
+    if (haikuObj.status === '下書き') {
+        actionArea.style.display = 'block';
+    } else {
+        actionArea.style.display = 'none';
+    }
+
+    document.getElementById('haikuDetailModal').classList.remove('hidden');
+}
+
+function closeHaikuDetailModal() {
+    document.getElementById('haikuDetailModal').classList.add('hidden');
+}
+
+/* ⑤ 下書きを編集モードで開く */
+function editDraftHaiku() {
+    closeHaikuDetailModal();
+    if (!activeSelectedHaiku) return;
+
+    editingDraftHaiku = activeSelectedHaiku;
+    
+    // 下書きのデータを入力フォームへセット
+    document.getElementById('inputPhrase').value = activeSelectedHaiku.phrase;
+    document.getElementById('kigoInput').value = activeSelectedHaiku.parentKigo || activeSelectedHaiku.kigo || '';
+    if (activeSelectedHaiku.season) document.getElementById('seasonSelect').value = activeSelectedHaiku.season;
+    if (activeSelectedHaiku.detailSeason) document.getElementById('detailSeasonSelect').value = activeSelectedHaiku.detailSeason;
+    document.getElementById('authorInput').value = activeSelectedHaiku.author || '西田上酢';
+    document.getElementById('authorKanaInput').value = activeSelectedHaiku.authorKana || 'にしだうえす';
+    if (activeSelectedHaiku.sakkuDate) document.getElementById('sakkuDateInput').value = activeSelectedHaiku.sakkuDate;
+
+    goToStep(1);
+    const input = document.getElementById('inputPhrase');
+    if (input) input.focus();
 }
 
 function goToStep(stepNumber) {
@@ -299,7 +360,7 @@ function goToStep3() {
     const dateVal = document.getElementById('sakkuDateInput').value;
 
     currentHaikuData.author = authorVal || '西田上酢';
-    currentHaikuData.authorKana = authorKanaVal || 'にしだ じょうす';
+    currentHaikuData.authorKana = authorKanaVal || 'にしだうえす';
     currentHaikuData.sakkuDate = dateVal || getTodayDateString();
 
     document.getElementById('previewPhrase').innerText = currentHaikuData.phrase;
@@ -315,7 +376,7 @@ function goToStep3() {
     goToStep(3);
 }
 
-/* 確実な送信処理（URLSearchParams形式） */
+/* 送信実行処理 */
 function submitHaiku(statusType) {
     currentHaikuData.status = statusType;
 
@@ -326,7 +387,7 @@ function submitHaiku(statusType) {
     const payload = {
         phrase: currentHaikuData.phrase,
         author: authorVal || currentHaikuData.author || '西田上酢',
-        authorKana: authorKanaVal || currentHaikuData.authorKana || 'にしだ じょうす',
+        authorKana: authorKanaVal || currentHaikuData.authorKana || 'にしだうえす',
         kigo: currentHaikuData.kigo || currentHaikuData.parentKigo,
         parentKigo: currentHaikuData.parentKigo,
         parentKana: currentHaikuData.parentKana,
@@ -339,7 +400,6 @@ function submitHaiku(statusType) {
     const compTitle = document.getElementById('completeTitle');
     if (compTitle) compTitle.innerText = `${statusType}として保存しました`;
 
-    // FormData形式に変換して送信
     const params = new URLSearchParams();
     for (let key in payload) {
         params.append(key, payload[key]);
@@ -351,13 +411,22 @@ function submitHaiku(statusType) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params.toString()
     }).then(() => {
-        setTimeout(fetchMainHaikuData, 1000); // 1秒後に最新一覧を再読み込み
+        setTimeout(fetchMainHaikuData, 1000);
         goToStep(4);
     }).catch(err => {
         console.error(err);
         saveToOfflineQueue(payload);
         goToStep(4);
     });
+}
+
+function finishAndReturn() {
+    if (editingDraftHaiku) {
+        editingDraftHaiku = null;
+        startYomuMode();
+    } else {
+        goToStartScreen();
+    }
 }
 
 function saveToOfflineQueue(data) {
