@@ -91,13 +91,16 @@
         </div>
     </div>
 
-    <!-- 💡 モーダル（完成句・下書き別アクション） -->
+    <!-- 💡 モーダル（右上✕ボタン付き） -->
     <div id="haikuDetailModal" class="card-overlay hidden" onclick="closeHaikuDetailModal()">
         <div class="modal-card-content" onclick="event.stopPropagation()">
-            <!-- 必ず1行で表示する句テキスト領域 -->
+            <!-- 右上閉じる✕ボタン -->
+            <span class="modal-close-corner" onclick="closeHaikuDetailModal()">✕</span>
+
+            <!-- 長句でも強制1行で収まる領域 -->
             <div id="modalPhrase" class="modal-phrase-single-line"></div>
             
-            <!-- 動的にアクションボタンを挿入 -->
+            <!-- 動的アクションボタン（完成句へ / 修正 / 下書きへ / 削除） -->
             <div id="modalActions" class="modal-text-actions"></div>
         </div>
     </div>
