@@ -12,7 +12,7 @@ let authorDatabase = [];
 let haikuHistory = [];    
 
 let currentReadTab = '完成句'; 
-let editingDraftHaiku = null; // 編集中の下書きオブジェクト（rowIndexを保持）
+let editingHaikuObj = null; // 修正中の句オブジェクト（完成句・下書き共通）
 let activeSelectedHaiku = null; 
 
 let omikujiPool = [];
@@ -96,7 +96,7 @@ function restoreCachedMasterData() {
     } catch (e) {}
 }
 
-/* スプレッドシートからの全データ取得（行番号 rowIndex も取得） */
+/* スプレッドシートからのデータ取得 */
 function fetchMainHaikuData() {
     const oldScript = document.getElementById('mainHaikuScript');
     if (oldScript) oldScript.remove();
@@ -129,9 +129,9 @@ window.mainDataReceived = function(data) {
 
             const author = getVal(1) || '西田上酢';
             const authorKana = getVal(2) || 'にしだうえす';
-            const status = getVal(10) || '完成句'; // K列
-            const rawDate = getVal(11);            // L列
-            const rowIndex = i + 1;                // 1始まりのシート行番号
+            const status = getVal(10) || '完成句';
+            const rawDate = getVal(11);
+            const rowIndex = i + 1; // スプレッドシート上の行番号
 
             haikuHistory.push({
                 phrase, author, authorKana,
@@ -233,7 +233,7 @@ function goToStartScreen() {
 
 function startEmuMode() {
     updateCatVisibility(false);
-    editingDraftHaiku = null;
+    editingHaikuObj = null;
     currentHaikuData.rowIndex = 0;
     document.getElementById('inputPhrase').value = '';
     document.getElementById('authorInput').value = '西田上酢';
@@ -244,7 +244,7 @@ function startEmuMode() {
 }
 
 function cancelEmuMode() {
-    if (editingDraftHaiku) startYomuMode();
+    if (editingHaikuObj) startYomuMode();
     else goToStartScreen();
 }
 
@@ -263,7 +263,24 @@ function switchReadTab(status) {
     renderYomuList();
 }
 
-/* 🔍 E列（親季語）でのさりげないリアルタイム絞り込み検索 */
+/* 【案B】 検索窓の展開/格納処理 */
+function expandSearchInput() {
+    const wrapper = document.getElementById('searchWrapper');
+    const input = document.getElementById('kigoFilterInput');
+    if (wrapper && input) {
+        wrapper.classList.add('expanded');
+        input.focus();
+    }
+}
+
+function collapseSearchIfEmpty() {
+    const wrapper = document.getElementById('searchWrapper');
+    const input = document.getElementById('kigoFilterInput');
+    if (wrapper && input && input.value.trim() === '') {
+        wrapper.classList.remove('expanded');
+    }
+}
+
 function onKigoFilterInputChanged() {
     const query = document.getElementById('kigoFilterInput').value.trim();
     const clearBtn = document.getElementById('clearKigoFilterBtn');
@@ -271,15 +288,17 @@ function onKigoFilterInputChanged() {
     renderYomuList();
 }
 
-function clearKigoFilter() {
+function clearKigoFilter(event) {
+    if (event) event.stopPropagation();
     const input = document.getElementById('kigoFilterInput');
     if (input) input.value = '';
     const clearBtn = document.getElementById('clearKigoFilterBtn');
     if (clearBtn) clearBtn.classList.add('hidden');
+    collapseSearchIfEmpty();
     renderYomuList();
 }
 
-/* 一覧描画（E列親季語検索対応） */
+/* 一覧描画処理 */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
@@ -287,12 +306,10 @@ function renderYomuList() {
 
     const filterQuery = document.getElementById('kigoFilterInput') ? document.getElementById('kigoFilterInput').value.trim().toLowerCase() : '';
 
-    // タブ（完成句/下書き） ＆ E列（親季語）での絞り込み
     const targetHaikus = haikuHistory.filter(h => {
         const matchTab = (h.status === currentReadTab);
         let matchKigo = true;
         if (filterQuery !== '') {
-            // E列（parentKigo）または D列（kigo）で部分一致検索
             const targetStr = ((h.parentKigo || '') + ' ' + (h.kigo || '')).toLowerCase();
             matchKigo = targetStr.includes(filterQuery);
         }
@@ -336,12 +353,11 @@ function renderYomuList() {
     });
 }
 
+/* 句タップ時：完成句・下書き共に修正用モーダルを表示 */
 function onHaikuCardClicked(haikuObj) {
-    if (haikuObj.status === '下書き') {
-        activeSelectedHaiku = haikuObj;
-        document.getElementById('modalPhrase').innerText = haikuObj.phrase;
-        document.getElementById('haikuDetailModal').classList.remove('hidden');
-    }
+    activeSelectedHaiku = haikuObj;
+    document.getElementById('modalPhrase').innerText = haikuObj.phrase;
+    document.getElementById('haikuDetailModal').classList.remove('hidden');
 }
 
 function closeHaikuDetailModal() {
@@ -390,19 +406,17 @@ function renderOmikujiDisplay() {
     if (nextBtn) nextBtn.classList.toggle('disabled', omikujiIndex === omikujiPool.length - 1);
 }
 
-/* PCキーボード矢印キー（← →）での「おみ句じ」送り */
 function initKeyboardEvents() {
     document.addEventListener('keydown', function(e) {
         const omikujiScreen = document.getElementById('omikujiRoomScreen');
         if (!omikujiScreen || !omikujiScreen.classList.contains('active')) return;
 
-        // 入力フォーム等にフォーカスがある時はスキップ
         if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
 
         if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-            changeOmikujiHaiku(-1); // 右矢印/上矢印で前へ
+            changeOmikujiHaiku(-1);
         } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-            changeOmikujiHaiku(1);  // 左矢印/下矢印で次へ
+            changeOmikujiHaiku(1);
         }
     });
 }
@@ -426,12 +440,12 @@ function initSwipeEvents() {
     }, { passive: true });
 }
 
-/* 下書き編集モード（元の行番号 rowIndex を保持） */
-function editDraftHaiku() {
+/* 修正モード実行（完成句・下書き共通） */
+function editSelectedHaiku() {
     closeHaikuDetailModal();
     if (!activeSelectedHaiku) return;
 
-    editingDraftHaiku = activeSelectedHaiku;
+    editingHaikuObj = activeSelectedHaiku;
     currentHaikuData.rowIndex = activeSelectedHaiku.rowIndex || 0; // 元の行番号を保持
     
     document.getElementById('inputPhrase').value = activeSelectedHaiku.phrase;
@@ -546,7 +560,6 @@ function goToStep3() {
     goToStep(3);
 }
 
-/* 上書き対応送信機能 */
 function submitHaiku(statusType) {
     currentHaikuData.status = statusType;
 
@@ -565,7 +578,7 @@ function submitHaiku(statusType) {
         detailSeason: currentHaikuData.detailSeason,
         status: statusType,
         sakkuDate: dateVal || currentHaikuData.sakkuDate || getTodayDateString(),
-        rowIndex: currentHaikuData.rowIndex || 0 // 既存の行番号をGASへ送る
+        rowIndex: currentHaikuData.rowIndex || 0
     };
 
     const compTitle = document.getElementById('completeTitle');
@@ -592,7 +605,7 @@ function submitHaiku(statusType) {
 }
 
 function finishAndReturn() {
-    if (editingDraftHaiku) editingDraftHaiku = null;
+    if (editingHaikuObj) editingHaikuObj = null;
     currentHaikuData.rowIndex = 0;
     startYomuMode();
 }
