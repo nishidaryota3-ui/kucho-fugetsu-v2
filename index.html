@@ -47,7 +47,6 @@
                     <span class="current">俳句を読む</span>
                 </div>
                 
-                <!-- 白黒デザインのタップ展開型検索 -->
                 <div id="searchWrapper" class="subtle-search-wrapper" onclick="expandSearchInput()">
                     <span class="search-icon">🔍</span>
                     <input type="text" id="kigoFilterInput" class="subtle-search-input" placeholder="季語検索" oninput="onKigoFilterInputChanged()" onblur="collapseSearchIfEmpty()">
@@ -58,20 +57,17 @@
             <div class="read-title-center">西田上酢 句帳</div>
         </div>
         
-        <!-- シンプル和風テキスト切替タブ -->
         <div class="read-tab-text-group">
             <span id="tabKansei" class="text-tab active" onclick="switchReadTab('完成句')">完成句</span>
             <span class="text-tab-divider">｜</span>
             <span id="tabShitagaki" class="text-tab" onclick="switchReadTab('下書き')">下書き</span>
         </div>
 
-        <!-- 縦書き一覧コンテナ -->
         <div id="readHaikuList" class="horizontal-scroll-container saijiki-scroll-list">
-            <!-- JSで動的に縦書きの句と年月区切りが配置されます -->
         </div>
     </div>
 
-    <!-- 🎲 猫タップ時のおみ句じ鑑賞スクリーン -->
+    <!-- 🎲 おみ句じ鑑賞スクリーン -->
     <div id="omikujiRoomScreen" class="step-screen">
         <div class="read-header">
             <div class="breadcrumb">
@@ -82,10 +78,8 @@
                 <span class="current">おみ句じ</span>
             </div>
         </div>
-
         <button id="prevBtn" class="nav-arrow arrow-right" onclick="changeOmikujiHaiku(-1)">＞</button> 
         <button id="nextBtn" class="nav-arrow arrow-left" onclick="changeOmikujiHaiku(1)">＜</button>  
-
         <div class="haiku-screen">
             <p id="omikujiPhrase" class="phrase"></p>
         </div>
@@ -94,18 +88,13 @@
     <!-- 💡 モーダル（右上✕ボタン付き） -->
     <div id="haikuDetailModal" class="card-overlay hidden" onclick="closeHaikuDetailModal()">
         <div class="modal-card-content" onclick="event.stopPropagation()">
-            <!-- 右上閉じる✕ボタン -->
             <span class="modal-close-corner" onclick="closeHaikuDetailModal()">✕</span>
-
-            <!-- 長句でも強制1行で収まる領域 -->
             <div id="modalPhrase" class="modal-phrase-single-line"></div>
-            
-            <!-- 動的アクションボタン（完成句へ / 修正 / 下書きへ / 削除） -->
             <div id="modalActions" class="modal-text-actions"></div>
         </div>
     </div>
 
-    <!-- 🖋️ ステップ1：句の入力画面（詠む） -->
+    <!-- 🖋️ ステップ1：句の入力 -->
     <div id="step1" class="step-screen">
         <div class="step-title">【一】 句の入力</div>
         <div class="input-screen-content">
@@ -128,12 +117,10 @@
                     自動検出された季語<br>
                     <div id="detectedKigoText" style="margin-top: 5px; font-weight: bold;"></div>
                 </div>
-
                 <div class="form-group" style="margin-top: 15px;">
                     <label class="form-label">季語（親季語）</label>
                     <input type="text" id="kigoInput" class="text-input" placeholder="例：酉の市、桜" onblur="checkAndHokanKigoData()">
                 </div>
-
                 <div class="form-group">
                     <label class="form-label">季節</label>
                     <select id="seasonSelect" class="text-input">
@@ -145,7 +132,6 @@
                         <option value="muki">無季</option>
                     </select>
                 </div>
-
                 <div class="form-group">
                     <label class="form-label">詳細季節</label>
                     <select id="detailSeasonSelect" class="text-input">
@@ -170,19 +156,16 @@
                         <option value="暮">暮</option>
                     </select>
                 </div>
-
                 <div class="form-group" style="margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
                     <label class="form-label">作者名</label>
                     <input type="text" id="authorInput" class="text-input" list="authorList" value="西田上酢" oninput="onAuthorInputChanged()" onchange="onAuthorNameChange()">
                     <datalist id="authorList"></datalist>
                 </div>
-
                 <div class="form-group">
                     <label class="form-label">作者名（よみがな）</label>
                     <input type="text" id="authorKanaInput" class="text-input" list="authorKanaList" value="にしだうえす" oninput="onAuthorKanaInputChanged()">
                     <datalist id="authorKanaList"></datalist>
                 </div>
-
                 <div class="form-group" style="margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
                     <label class="form-label">作句日付</label>
                     <input type="date" id="sakkuDateInput" class="text-input">
@@ -195,25 +178,18 @@
         </div>
     </div>
 
-    <!-- 👁️ ステップ3：登録プレビュー -->
+    <!-- 👁️ ステップ3：プレビュー -->
     <div id="step3" class="step-screen">
         <div class="step-title">【三】 登録プレビュー</div>
-        
         <div class="global-header-area">
-            <div class="header-row-top">
-                <div id="previewBreadcrumb" class="breadcrumb"></div>
-            </div>
-            <div class="header-row-bottom">
-                <div id="previewAuthor" class="info-upper-tag"></div>
-            </div>
+            <div class="header-row-top"><div id="previewBreadcrumb" class="breadcrumb"></div></div>
+            <div class="header-row-bottom"><div id="previewAuthor" class="info-upper-tag"></div></div>
         </div>
-
         <div class="preview-screen-content">
             <div class="haiku-screen">
                 <div id="previewPhrase" class="phrase"></div>
             </div>
         </div>
-
         <div class="btn-group" style="flex-direction: column; gap: 8px;">
             <div style="display: flex; gap: 10px; width: 100%;">
                 <button id="submitKanseiBtn" class="btn" onclick="submitHaiku('完成句')">完成句</button>
@@ -223,7 +199,7 @@
         </div>
     </div>
 
-    <!-- 🎉 ステップ4：完了画面 -->
+    <!-- 🎉 ステップ4：完了 -->
     <div id="step4" class="step-screen">
         <div class="step2-content" style="text-align: center;">
             <h2 id="completeTitle" style="font-size: 1.4rem; color: #2b2b2b; margin-bottom: 10px; font-weight: 500;">登録が完了しました</h2>
@@ -234,7 +210,6 @@
             <button class="btn" onclick="resetForm()">続けて次の句を入力</button>
         </div>
     </div>
-
     <script src="app.js"></script>
 </body>
 </html>
