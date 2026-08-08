@@ -39,7 +39,7 @@
 
     <!-- 📖 「読む」画面 -->
     <div id="readScreen" class="step-screen">
-        <!-- パンくず（左上） ＆ さりげない季語検索 ＆ 中央タイトル -->
+        <!-- ヘッダー：左上パンくず ＆ 右上タップ展開検索 ＆ 中央タイトル -->
         <div class="read-header">
             <div class="read-header-top">
                 <div class="breadcrumb">
@@ -48,21 +48,22 @@
                     <span class="current">俳句を読む</span>
                 </div>
                 
-                <!-- さりげない親季語検索ボックス（E列検索） -->
-                <div class="subtle-search-wrapper">
+                <!-- タップ展開型・さりげない親季語検索 -->
+                <div id="searchWrapper" class="subtle-search-wrapper" onclick="expandSearchInput()">
                     <span class="search-icon">🔍</span>
-                    <input type="text" id="kigoFilterInput" class="subtle-search-input" placeholder="季語で絞り込み" oninput="onKigoFilterInputChanged()">
-                    <span id="clearKigoFilterBtn" class="search-clear-btn hidden" onclick="clearKigoFilter()">✕</span>
+                    <input type="text" id="kigoFilterInput" class="subtle-search-input" placeholder="季語検索" oninput="onKigoFilterInputChanged()" onblur="collapseSearchIfEmpty()">
+                    <span id="clearKigoFilterBtn" class="search-clear-btn hidden" onclick="clearKigoFilter(event)">✕</span>
                 </div>
             </div>
 
             <div class="read-title-center">西田上酢 句帳</div>
         </div>
         
-        <!-- 完成句 / 下書き 切替タブ -->
-        <div class="read-tab-group">
-            <button id="tabKansei" class="read-tab active" onclick="switchReadTab('完成句')">完成句</button>
-            <button id="tabShitagaki" class="read-tab" onclick="switchReadTab('下書き')">下書き</button>
+        <!-- 【案A】 シンプル和風テキスト切替タブ -->
+        <div class="read-tab-text-group">
+            <span id="tabKansei" class="text-tab active" onclick="switchReadTab('完成句')">完成句</span>
+            <span class="text-tab-divider">｜</span>
+            <span id="tabShitagaki" class="text-tab" onclick="switchReadTab('下書き')">下書き</span>
         </div>
 
         <!-- 縦書き一覧コンテナ -->
@@ -71,7 +72,7 @@
         </div>
     </div>
 
-    <!-- 🎲 猫タップ時のおみ句じ（キーボード矢印対応）鑑賞スクリーン -->
+    <!-- 🎲 猫タップ時のおみ句じ鑑賞スクリーン -->
     <div id="omikujiRoomScreen" class="step-screen">
         <div class="read-header">
             <div class="breadcrumb">
@@ -91,12 +92,12 @@
         </div>
     </div>
 
-    <!-- 💡 下書きタップ時のフローティング選択 -->
+    <!-- 💡 完成句・下書きタップ時のフローティングモーダル -->
     <div id="haikuDetailModal" class="card-overlay hidden" onclick="closeHaikuDetailModal()">
         <div class="modal-card-content" onclick="event.stopPropagation()">
             <div id="modalPhrase" class="modal-phrase"></div>
             <div class="modal-text-actions">
-                <span class="text-action-btn primary" onclick="editDraftHaiku()">修正</span>
+                <span class="text-action-btn primary" onclick="editSelectedHaiku()">修正</span>
                 <span class="action-divider">|</span>
                 <span class="text-action-btn" onclick="closeHaikuDetailModal()">閉じる</span>
             </div>
