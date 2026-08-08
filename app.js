@@ -41,25 +41,44 @@ function toKanjiNum(str) {
     return String(str).split('').map(char => numMap[char] || char).join('');
 }
 
-// 「2023」「2023-05」「2023-05-12」など様々な日付形式を縦書き見出しに変換
-function toKanjiYearMonth(dateStr) {
-    if (!dateStr) return '過去作品';
-    const str = String(dateStr).trim();
-    const parts = str.split(/[-/.]/);
+// 日付文字列から統一した比較用キーと見出しテキストを安全に生成する関数
+function parseDateLabel(dateStr) {
+    if (!dateStr) return { key: '0000-00', label: '過去作品' };
+    
+    let str = String(dateStr).trim();
 
-    if (parts.length === 1 && parts[0].length === 4) {
-        // 例: "2023"
-        return `${toKanjiNum(parts[0])}年`;
-    } else if (parts.length >= 2) {
-        // 例: "2023-05" や "2023-05-12"
-        const y = toKanjiNum(parts[0]);
-        const mNum = parseInt(parts[1], 10);
-        const monthMap = {1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十', 11:'十一', 12:'十二'};
-        const m = monthMap[mNum] || mNum;
-        return `${y}年 ${m}月`;
+    // Date(2026,6,8) 形式の変換
+    if (str.includes('Date(')) {
+        const m = str.match(/\d+/g);
+        if (m && m.length >= 3) {
+            str = `${m[0]}-${parseInt(m[1])+1}-${m[2]}`;
+        }
     }
 
-    return '過去作品';
+    // スラッシュやドットをハイフンに統一
+    str = str.replace(/[/.]/g, '-');
+    const parts = str.split('-').map(p => p.trim()).filter(Boolean);
+
+    // パターン1: "2023" や 2023 (4桁の年のみ)
+    if (parts.length === 1 && /^\d{4}$/.test(parts[0])) {
+        const y = parts[0];
+        return { key: `${y}-00`, label: `${toKanjiNum(y)}年` };
+    }
+
+    // パターン2: "2023-05" や "2023-05-12"
+    if (parts.length >= 2 && /^\d{4}$/.test(parts[0])) {
+        const y = parts[0];
+        const mNum = parseInt(parts[1], 10);
+        if (!isNaN(mNum)) {
+            const monthMap = {1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十', 11:'十一', 12:'十二'};
+            const mKanji = monthMap[mNum] || mNum;
+            const mPad = String(mNum).padStart(2, '0');
+            return { key: `${y}-${mPad}`, label: `${toKanjiNum(y)}年 ${mKanji}月` };
+        }
+    }
+
+    // 判定できなかった場合
+    return { key: '0000-00', label: '過去作品' };
 }
 
 window.onload = function() {
@@ -120,14 +139,7 @@ window.mainDataReceived = function(data) {
             const author = getVal(1) || '西田上酢';
             const authorKana = getVal(2) || 'にしだうえす';
             const status = getVal(10) || '完成句'; // K列
-            
-            let rawDate = getVal(11);
-            if (rawDate.includes('Date(')) {
-                const m = rawDate.match(/\d+/g);
-                if (m && m.length >= 3) {
-                    rawDate = `${m[0]}-${String(parseInt(m[1])+1).padStart(2,'0')}-${String(parseInt(m[2])).padStart(2,'0')}`;
-                }
-            }
+            const rawDate = getVal(11);            // L列
 
             haikuHistory.push({
                 phrase, author, authorKana,
@@ -256,7 +268,7 @@ function switchReadTab(status) {
     renderYomuList();
 }
 
-/* 一覧描画処理（「2023」などの年のみ入力にも対応） */
+/* 一覧描画処理（「2023」「2025」などの数値・年のみ入力にも対応） */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
@@ -269,28 +281,25 @@ function renderYomuList() {
         return;
     }
 
-    // 新しい日付順にソート
-    targetHaikus.sort((a, b) => (b.sakkuDate || '').localeCompare(a.sakkuDate || ''));
+    // 各句の日付情報を解析
+    targetHaikus.forEach(item => {
+        item._parsedDate = parseDateLabel(item.sakkuDate);
+    });
 
-    let lastLabel = '';
+    // 新しい日付順（降順）にソート
+    targetHaikus.sort((a, b) => b._parsedDate.key.localeCompare(a._parsedDate.key));
+
+    let lastKey = '';
 
     targetHaikus.forEach(item => {
-        // 年月または年単位で区切りテキストを判定
-        let currentLabel = '過去作品';
-        if (item.sakkuDate) {
-            const parts = item.sakkuDate.split(/[-/.]/);
-            if (parts.length === 1 && parts[0].length === 4) {
-                currentLabel = parts[0]; // 年のみ (2023)
-            } else if (parts.length >= 2) {
-                currentLabel = `${parts[0]}-${parts[1]}`; // 年月 (2023-05)
-            }
-        }
+        const dateInfo = item._parsedDate;
         
-        if (currentLabel !== lastLabel) {
-            lastLabel = currentLabel;
+        // 年月グループが変わったら見出しカードを配置
+        if (dateInfo.key !== lastKey) {
+            lastKey = dateInfo.key;
             const divider = document.createElement('div');
             divider.className = 'date-divider-card';
-            divider.innerText = toKanjiYearMonth(item.sakkuDate);
+            divider.innerText = dateInfo.label;
             container.appendChild(divider);
         }
 
