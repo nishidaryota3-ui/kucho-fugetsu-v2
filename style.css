@@ -158,18 +158,25 @@ body, html {
 .card-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
 .modal-card-content {
-    background: #faf9f6; padding: 25px 20px; border-radius: 12px;
+    position: relative; background: #faf9f6; padding: 30px 20px 20px; border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 88vw; max-width: 360px;
     max-height: 85vh; display: flex; flex-direction: column; align-items: center; gap: 15px; text-align: center;
 }
 
+/* 右上閉じる✕ボタン */
+.modal-close-corner {
+    position: absolute; top: 10px; right: 14px; font-size: 1.1rem; color: #888;
+    cursor: pointer; padding: 4px 8px; font-family: sans-serif; transition: color 0.2s;
+}
+.modal-close-corner:hover { color: #000; }
+
 /* 22文字などの長句でも絶対に改行させず綺麗に収める縦書き領域 */
 .modal-phrase-single-line {
     writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;
-    font-size: clamp(0.9rem, 3.2vh, 1.25rem); /* 文字数・画面高に合わせて自動縮小 */
+    font-size: clamp(0.85rem, 2.8vh, 1.25rem); /* 可変サイズでカット防止 */
     letter-spacing: 0.18em; line-height: 1.2; color: #2b2b2b;
-    white-space: nowrap !important; /* 強制1行表示 */
-    max-height: 55vh; overflow: hidden; display: block; margin: 0 auto; padding: 10px 0;
+    white-space: nowrap !important;
+    max-height: 52vh; overflow: hidden; display: block; margin: 0 auto; padding: 10px 0;
 }
 
 .modal-text-actions { display: flex; align-items: center; gap: 12px; font-size: 0.88rem; font-family: serif; flex-wrap: wrap; justify-content: center; }
@@ -219,7 +226,7 @@ body, html {
     border: 1px solid #ccc; border-radius: 4px; outline: none; background: #faf9f6;
 }
 
-/* プレビュー領域（長句でも上下カットされない可変設定） */
+/* プレビュー領域 */
 .preview-screen-content {
     position: relative; flex: 1; width: 100%;
     display: flex; justify-content: center; align-items: center; overflow: hidden;
@@ -237,12 +244,12 @@ body, html {
 }
 .haiku-screen { height: 100%; width: 100%; display: flex; justify-content: center; align-items: center; flex-direction: column; }
 
-/* 登録プレビュー・おみ句じ用縦書き文字（長句カット防止） */
+/* 長句でも上下カットされない可変設定 */
 .phrase {
     writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;
-    font-size: clamp(1.4rem, 3.0vh, 2.8rem); line-height: 1.2; letter-spacing: 0.25em;
+    font-size: clamp(1.2rem, 2.8vh, 2.6rem); line-height: 1.2; letter-spacing: 0.25em;
     font-weight: 500; white-space: nowrap; text-align: center; display: block;
-    max-height: 60vh; overflow: hidden;
+    max-height: 58vh; overflow: hidden;
 }
 
 /* ボタンデザイン */
