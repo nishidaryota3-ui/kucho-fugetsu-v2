@@ -39,7 +39,6 @@
 
     <!-- 📖 「読む」画面 -->
     <div id="readScreen" class="step-screen">
-        <!-- ヘッダー：左上パンくず ＆ 右上タップ展開検索 ＆ 中央タイトル -->
         <div class="read-header">
             <div class="read-header-top">
                 <div class="breadcrumb">
@@ -48,7 +47,7 @@
                     <span class="current">俳句を読む</span>
                 </div>
                 
-                <!-- タップ展開型・さりげない親季語検索 -->
+                <!-- 白黒デザインのタップ展開型検索 -->
                 <div id="searchWrapper" class="subtle-search-wrapper" onclick="expandSearchInput()">
                     <span class="search-icon">🔍</span>
                     <input type="text" id="kigoFilterInput" class="subtle-search-input" placeholder="季語検索" oninput="onKigoFilterInputChanged()" onblur="collapseSearchIfEmpty()">
@@ -59,7 +58,7 @@
             <div class="read-title-center">西田上酢 句帳</div>
         </div>
         
-        <!-- 【案A】 シンプル和風テキスト切替タブ -->
+        <!-- シンプル和風テキスト切替タブ -->
         <div class="read-tab-text-group">
             <span id="tabKansei" class="text-tab active" onclick="switchReadTab('完成句')">完成句</span>
             <span class="text-tab-divider">｜</span>
@@ -92,15 +91,14 @@
         </div>
     </div>
 
-    <!-- 💡 完成句・下書きタップ時のフローティングモーダル -->
+    <!-- 💡 モーダル（完成句・下書き別アクション） -->
     <div id="haikuDetailModal" class="card-overlay hidden" onclick="closeHaikuDetailModal()">
         <div class="modal-card-content" onclick="event.stopPropagation()">
-            <div id="modalPhrase" class="modal-phrase"></div>
-            <div class="modal-text-actions">
-                <span class="text-action-btn primary" onclick="editSelectedHaiku()">修正</span>
-                <span class="action-divider">|</span>
-                <span class="text-action-btn" onclick="closeHaikuDetailModal()">閉じる</span>
-            </div>
+            <!-- 必ず1行で表示する句テキスト領域 -->
+            <div id="modalPhrase" class="modal-phrase-single-line"></div>
+            
+            <!-- 動的にアクションボタンを挿入 -->
+            <div id="modalActions" class="modal-text-actions"></div>
         </div>
     </div>
 
