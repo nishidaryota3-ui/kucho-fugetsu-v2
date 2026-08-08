@@ -109,7 +109,7 @@ function fetchMainHaikuData() {
     document.body.appendChild(script);
 }
 
-/* 「西田上酢」「西田亮太」のご自身の作品のみ厳密抽出 */
+/* 作者判定（西田上酢・西田亮太・UES・未記入）のみを確実に抽出 */
 window.mainDataReceived = function(data) {
     try {
         if (!data || !data.table || !data.table.rows) return;
@@ -130,18 +130,20 @@ window.mainDataReceived = function(data) {
             const phrase = getVal(0);
             if (!phrase || phrase === '俳句' || phrase === '句' || phrase === 'A') continue;
 
-            const author = getVal(1) || '西田上酢';
+            const author = getVal(1);
             const authorKana = getVal(2) || 'にしだうえす';
 
-            const isMyAuthor = (author === '西田上酢' || author === '西田亮太' || author === 'UES' || !author);
+            // 「西田上酢」「西田亮太」「UES」または空欄（デフォルト自分の句）のみ許可
+            const isMyAuthor = (!author || author === '西田上酢' || author === '西田亮太' || author === 'UES');
             if (!isMyAuthor) continue;
 
+            const displayAuthor = author || '西田上酢';
             const status = getVal(10) || '完成句';
             const rawDate = getVal(11);
             const rowIndex = i + 1;
 
             haikuHistory.push({
-                phrase, author, authorKana,
+                phrase, author: displayAuthor, authorKana,
                 kigo: getVal(3), 
                 parentKigo: getVal(4),
                 season: getVal(6), detailSeason: getVal(7),
@@ -149,8 +151,8 @@ window.mainDataReceived = function(data) {
                 rowIndex: rowIndex
             });
 
-            if (author && author !== '作者名') {
-                authorMap[author] = authorKana || author;
+            if (displayAuthor && displayAuthor !== '作者名') {
+                authorMap[displayAuthor] = authorKana || displayAuthor;
             }
         }
 
@@ -302,7 +304,7 @@ function clearKigoFilter(event) {
     renderYomuList();
 }
 
-/* 縦書き一覧描画（左＝古い過去句 ➔ 右スクロール＝一番右が最新句 に完全統一） */
+/* 縦書き一覧描画（スクロール左端＝過去 ➔ 右＝最新句へソート固定） */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
@@ -330,7 +332,7 @@ function renderYomuList() {
         item._parsedDate = parseDateLabel(item.sakkuDate);
     });
 
-    // 古い順 ➔ 新しい順（昇順ソート）
+    // 年月グループ・個別日付ともに古い順（昇順）でソート
     targetHaikus.sort((a, b) => {
         if (a._parsedDate.groupKey !== b._parsedDate.groupKey) {
             return a._parsedDate.groupKey.localeCompare(b._parsedDate.groupKey);
@@ -357,14 +359,9 @@ function renderYomuList() {
         card.innerHTML = `<div class="saijiki-phrase">${item.phrase}</div>`;
         container.appendChild(card);
     });
-
-    // 最新句（一番右）へスクロール位置を調整
-    requestAnimationFrame(() => {
-        container.scrollLeft = container.scrollWidth;
-    });
 }
 
-/* モーダル表示（完成句/下書き別のボタンを挿入） */
+/* モーダル表示 */
 function onHaikuCardClicked(haikuObj) {
     activeSelectedHaiku = haikuObj;
     document.getElementById('modalPhrase').innerText = haikuObj.phrase;
@@ -373,14 +370,12 @@ function onHaikuCardClicked(haikuObj) {
     if (!actionsContainer) return;
 
     if (haikuObj.status === '完成句') {
-        // 完成句: [ 修正 ] [ 下書きへ ]
         actionsContainer.innerHTML = `
             <span class="text-action-btn primary" onclick="editSelectedHaiku()">修正</span>
             <span class="action-divider">|</span>
             <span class="text-action-btn" onclick="changeHaikuStatus('下書き')">下書きへ</span>
         `;
     } else {
-        // 下書き: [ 完成句へ ] [ 修正 ] [ 削除 ]
         actionsContainer.innerHTML = `
             <span class="text-action-btn primary" onclick="changeHaikuStatus('完成句')">完成句へ</span>
             <span class="action-divider">|</span>
@@ -397,28 +392,26 @@ function closeHaikuDetailModal() {
     document.getElementById('haikuDetailModal').classList.add('hidden');
 }
 
-/* ステータス直接書き換え（完成句へ / 下書きへ） */
+/* GAS連携（確実なフォーム送信形式へ修正） */
 function changeHaikuStatus(targetStatus) {
     if (!activeSelectedHaiku) return;
     closeHaikuDetailModal();
 
-    const params = new URLSearchParams();
-    params.append('action', 'changeStatus');
-    params.append('status', targetStatus);
-    params.append('rowIndex', activeSelectedHaiku.rowIndex);
+    const formData = new FormData();
+    formData.append('action', 'changeStatus');
+    formData.append('status', targetStatus);
+    formData.append('rowIndex', activeSelectedHaiku.rowIndex);
 
     fetch(GAS_WEB_APP_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString()
+        body: formData
     }).then(() => {
-        setTimeout(fetchMainHaikuData, 1200);
+        setTimeout(fetchMainHaikuData, 1000);
     }).catch(() => {
-        setTimeout(fetchMainHaikuData, 1200);
+        setTimeout(fetchMainHaikuData, 1000);
     });
 }
 
-/* 下書き削除 */
 function deleteSelectedDraft() {
     if (!activeSelectedHaiku) return;
     
@@ -428,18 +421,17 @@ function deleteSelectedDraft() {
 
     closeHaikuDetailModal();
 
-    const params = new URLSearchParams();
-    params.append('action', 'delete');
-    params.append('rowIndex', activeSelectedHaiku.rowIndex);
+    const formData = new FormData();
+    formData.append('action', 'delete');
+    formData.append('rowIndex', activeSelectedHaiku.rowIndex);
 
     fetch(GAS_WEB_APP_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString()
+        body: formData
     }).then(() => {
-        setTimeout(fetchMainHaikuData, 1200);
+        setTimeout(fetchMainHaikuData, 1000);
     }).catch(() => {
-        setTimeout(fetchMainHaikuData, 1200);
+        setTimeout(fetchMainHaikuData, 1000);
     });
 }
 
@@ -645,39 +637,37 @@ function submitHaiku(statusType) {
     const authorKanaVal = document.getElementById('authorKanaInput').value.trim();
     const dateVal = document.getElementById('sakkuDateInput').value;
 
-    const payload = {
-        action: 'save',
-        phrase: currentHaikuData.phrase,
-        author: authorVal || currentHaikuData.author || '西田上酢',
-        authorKana: authorKanaVal || currentHaikuData.authorKana || 'にしだうえす',
-        kigo: currentHaikuData.kigo || currentHaikuData.parentKigo,
-        parentKigo: currentHaikuData.parentKigo,
-        parentKana: currentHaikuData.parentKana,
-        season: currentHaikuData.season,
-        detailSeason: currentHaikuData.detailSeason,
-        status: statusType,
-        sakkuDate: dateVal || currentHaikuData.sakkuDate || getTodayDateString(),
-        rowIndex: currentHaikuData.rowIndex || 0
-    };
+    const formData = new FormData();
+    formData.append('action', 'save');
+    formData.append('phrase', currentHaikuData.phrase);
+    formData.append('author', authorVal || currentHaikuData.author || '西田上酢');
+    formData.append('authorKana', authorKanaVal || currentHaikuData.authorKana || 'にしだうえす');
+    formData.append('kigo', currentHaikuData.kigo || currentHaikuData.parentKigo);
+    formData.append('parentKigo', currentHaikuData.parentKigo);
+    formData.append('parentKana', currentHaikuData.parentKana);
+    formData.append('season', currentHaikuData.season);
+    formData.append('detailSeason', currentHaikuData.detailSeason);
+    formData.append('status', statusType);
+    formData.append('sakkuDate', dateVal || currentHaikuData.sakkuDate || getTodayDateString());
+    formData.append('rowIndex', currentHaikuData.rowIndex || 0);
 
     const compTitle = document.getElementById('completeTitle');
     if (compTitle) compTitle.innerText = `${statusType}として保存しました`;
 
-    const params = new URLSearchParams();
-    for (let key in payload) {
-        params.append(key, payload[key]);
-    }
-
     fetch(GAS_WEB_APP_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString()
+        body: formData
     }).then(() => {
-        setTimeout(fetchMainHaikuData, 1500);
+        setTimeout(fetchMainHaikuData, 1000);
         goToStep(4);
     }).catch(err => {
         console.error(err);
-        saveToOfflineQueue(payload);
+        saveToOfflineQueue({
+            phrase: currentHaikuData.phrase,
+            author: authorVal || currentHaikuData.author || '西田上酢',
+            status: statusType,
+            sakkuDate: dateVal || getTodayDateString()
+        });
         goToStep(4);
     });
 }
@@ -707,16 +697,15 @@ function processOfflineQueue() {
         if (queue.length === 0) return;
         
         queue.forEach(item => {
-            const params = new URLSearchParams();
-            for (let key in item) params.append(key, item[key]);
+            const formData = new FormData();
+            for (let key in item) formData.append(key, item[key]);
             fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: params.toString()
+                body: formData
             });
         });
         localStorage.removeItem('hugetsu_offline_queue');
-        setTimeout(fetchMainHaikuData, 1500);
+        setTimeout(fetchMainHaikuData, 1000);
     } catch (e) {}
 }
 
