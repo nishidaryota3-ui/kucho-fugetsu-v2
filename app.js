@@ -12,8 +12,8 @@ let authorDatabase = [];
 let haikuHistory = [];    
 
 let currentReadTab = '完成句'; 
-let editingDraftHaiku = null; // ⑤ 下書き編集時の元の句オブジェクト
-let activeSelectedHaiku = null; // 案1 モーダルで選択中の句
+let editingDraftHaiku = null; 
+let activeSelectedHaiku = null; 
 
 let currentHaikuData = {
     phrase: '',
@@ -34,6 +34,24 @@ function getTodayDateString() {
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
+}
+
+// 西暦・月を漢数字の縦書き用テキストに変換
+function toKanjiYearMonth(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length < 2) return '';
+    
+    const y = parts[0];
+    const m = parseInt(parts[1], 10);
+
+    const numMap = {'0':'〇', '1':'一', '2':'二', '3':'三', '4':'四', '5':'五', '6':'六', '7':'七', '8':'八', '9':'九'};
+    const monthMap = {1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十', 11:'十一', 12:'十二'};
+
+    let kanjiYear = y.split('').map(char => numMap[char] || char).join('') + '年';
+    let kanjiMonth = (monthMap[m] || m) + '月';
+
+    return `${kanjiYear} ${kanjiMonth}`;
 }
 
 window.onload = function() {
@@ -104,7 +122,6 @@ window.mainDataReceived = function(data) {
         authorDatabase = Object.keys(authorMap).map(name => ({ name, kana: authorMap[name] }));
         updateAuthorDatalist();
 
-        // 読む画面が開いている場合は再描写
         if (document.getElementById('readScreen').classList.contains('active')) {
             renderYomuList();
         }
@@ -155,7 +172,7 @@ function parseSeasonCode(str) {
     if (s.includes('haru') || s === '春') return 'haru';
     if (s.includes('natsu') || s === '夏') return 'natsu';
     if (s.includes('aki') || s === '秋') return 'aki';
-    if (s.includes('fuyu') || s.includes('huyu') || s === '冬') return 'huyu';
+    if (s.includes('fuyu') || s.includes('huyu') || s === '冬') return 'fuyu';
     if (s.includes('shinnen') || s === '新年') return 'shinnen';
     if (s.includes('muki') || s === '無季') return 'muki';
     return 'haru';
@@ -172,14 +189,23 @@ function updateAuthorDatalist() {
     });
 }
 
-/* ナビゲーション関数 */
+function updateCatVisibility(show) {
+    const cat = document.getElementById('fixedCatBtn');
+    if (!cat) return;
+    if (show) cat.classList.remove('hidden');
+    else cat.classList.add('hidden');
+}
+
+/* ナビゲーション */
 function goToStartScreen() {
+    updateCatVisibility(false);
     document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
     document.getElementById('startScreen').classList.add('active');
 }
 
 function startEmuMode() {
-    editingDraftHaiku = null; // 新規入力
+    updateCatVisibility(false);
+    editingDraftHaiku = null;
     document.getElementById('inputPhrase').value = '';
     document.getElementById('authorInput').value = '西田上酢';
     document.getElementById('authorKanaInput').value = 'にしだうえす';
@@ -188,10 +214,9 @@ function startEmuMode() {
     if (input) input.focus();
 }
 
-/* ⑤ 下書きのキャンセル・戻る処理 */
 function cancelEmuMode() {
     if (editingDraftHaiku) {
-        startYomuMode(); // 下書き編集から戻った場合は「読む」画面へ
+        startYomuMode();
     } else {
         goToStartScreen();
     }
@@ -201,6 +226,7 @@ function startYomuMode() {
     renderYomuList();
     document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
     document.getElementById('readScreen').classList.add('active');
+    updateCatVisibility(true); // 「読む」画面でおみ句じ猫を表示
 }
 
 function switchReadTab(status) {
@@ -210,7 +236,7 @@ function switchReadTab(status) {
     renderYomuList();
 }
 
-/* ③＆④ 「西田上酢」の作品を縦書き一覧で表示 */
+/* 案3 年月区切り挟み込み＋縦書き一覧のレンダリング */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
@@ -223,10 +249,26 @@ function renderYomuList() {
         return;
     }
 
+    // 作句日付順（降順：新しい日付が先頭＝右側）にソート
+    myHaikus.sort((a, b) => (b.sakkuDate || '').localeCompare(a.sakkuDate || ''));
+
+    let lastYearMonth = '';
+
     myHaikus.forEach(item => {
+        const ym = item.sakkuDate ? item.sakkuDate.substring(0, 7) : ''; // YYYY-MM
+        
+        // 年月が変わったら、縦書きの年月区切りカードを挿入
+        if (ym && ym !== lastYearMonth) {
+            lastYearMonth = ym;
+            const divider = document.createElement('div');
+            divider.className = 'date-divider-card';
+            divider.innerText = toKanjiYearMonth(item.sakkuDate);
+            container.appendChild(divider);
+        }
+
         const card = document.createElement('div');
         card.className = 'saijiki-haiku-card';
-        card.onclick = () => openHaikuDetailModal(item);
+        card.onclick = () => onHaikuCardClicked(item);
         card.innerHTML = `<div class="saijiki-phrase">${item.phrase}</div>`;
         container.appendChild(card);
     });
@@ -236,35 +278,45 @@ function renderYomuList() {
     });
 }
 
-/* 案1：タップ時のポップアップ表示 */
-function openHaikuDetailModal(haikuObj) {
-    activeSelectedHaiku = haikuObj;
-    document.getElementById('modalPhrase').innerText = haikuObj.phrase;
-    document.getElementById('modalDate').innerText = haikuObj.sakkuDate ? `作句日：${haikuObj.sakkuDate}` : '作句日：未登録';
-    
-    // 下書きタブの場合のみ「編集ボタン」を表示
-    const actionArea = document.getElementById('modalActionArea');
+/* 句タップ時の挙動（下書きの場合のみ編集用モーダルを開く） */
+function onHaikuCardClicked(haikuObj) {
     if (haikuObj.status === '下書き') {
-        actionArea.style.display = 'block';
-    } else {
-        actionArea.style.display = 'none';
+        activeSelectedHaiku = haikuObj;
+        document.getElementById('modalPhrase').innerText = haikuObj.phrase;
+        document.getElementById('haikuDetailModal').classList.remove('hidden');
     }
-
-    document.getElementById('haikuDetailModal').classList.remove('hidden');
 }
 
 function closeHaikuDetailModal() {
     document.getElementById('haikuDetailModal').classList.add('hidden');
 }
 
-/* ⑤ 下書きを編集モードで開く */
+/* ②追加機能：おみ句じ猫タップ時のランダム鑑賞 */
+function triggerRandomOmikuji() {
+    const myHaikus = haikuHistory.filter(h => h.author === '西田上酢' && h.status === '完成句');
+    const targetPool = myHaikus.length > 0 ? myHaikus : haikuHistory;
+
+    if (targetPool.length === 0) {
+        alert('鑑賞できる俳句がまだありません。');
+        return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * targetPool.length);
+    const selectedHaiku = targetPool[randomIndex];
+
+    document.getElementById('omikujiPhrase').innerText = selectedHaiku.phrase;
+
+    document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
+    document.getElementById('omikujiRoomScreen').classList.add('active');
+    updateCatVisibility(true); // 猫ボタンは表示を維持
+}
+
 function editDraftHaiku() {
     closeHaikuDetailModal();
     if (!activeSelectedHaiku) return;
 
     editingDraftHaiku = activeSelectedHaiku;
     
-    // 下書きのデータを入力フォームへセット
     document.getElementById('inputPhrase').value = activeSelectedHaiku.phrase;
     document.getElementById('kigoInput').value = activeSelectedHaiku.parentKigo || activeSelectedHaiku.kigo || '';
     if (activeSelectedHaiku.season) document.getElementById('seasonSelect').value = activeSelectedHaiku.season;
@@ -279,6 +331,7 @@ function editDraftHaiku() {
 }
 
 function goToStep(stepNumber) {
+    updateCatVisibility(false);
     document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
     document.getElementById(`step${stepNumber}`).classList.add('active');
 }
@@ -376,7 +429,6 @@ function goToStep3() {
     goToStep(3);
 }
 
-/* 送信実行処理 */
 function submitHaiku(statusType) {
     currentHaikuData.status = statusType;
 
