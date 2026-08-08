@@ -25,6 +25,19 @@ body, html {
 .fixed-cat-trigger:active { transform: scale(0.95); }
 .fixed-cat-trigger.hidden { display: none !important; }
 
+/* 🏹 左右矢印ナビゲーションボタン (< >) */
+.nav-arrow { 
+    position: absolute; top: 50%; transform: translateY(-50%);
+    font-size: 1.2rem; color: #a0998c; cursor: pointer; padding: 25px 15px;
+    z-index: 50; background: none; border: none; transition: color 0.2s, opacity 0.2s, transform 0.1s;
+    opacity: 0.6; user-select: none; font-family: sans-serif;
+}
+.nav-arrow:active { transform: translateY(-50%) scale(0.9); }
+.nav-arrow:hover { color: #2b2b2b; opacity: 1; }
+.arrow-left { left: calc(5px + env(safe-area-inset-left)); } 
+.arrow-right { right: calc(5px + env(safe-area-inset-right)); }
+.nav-arrow.disabled { opacity: 0.1; cursor: default; pointer-events: none; }
+
 /* トップ画面デザイン */
 .top-icon-container {
     flex: 1; display: flex; flex-direction: row; justify-content: center;
@@ -44,7 +57,7 @@ body, html {
     letter-spacing: 0.08em; font-family: sans-serif; text-align: center;
 }
 
-/* ① 「読む」画面のヘッダー：左上パンくず ＆ 中央タイトル */
+/* 「読む」画面のヘッダー：左上パンくず ＆ 中央タイトル */
 .read-header {
     width: 100%; position: relative; display: flex; flex-direction: column;
     align-items: flex-start; justify-content: center; min-height: 48px; z-index: 30;
@@ -54,7 +67,7 @@ body, html {
     letter-spacing: 0.15em; color: #2b2b2b; margin-top: 4px;
 }
 
-/* ① 明朝体パンくずリスト（左上配置） */
+/* 明朝体パンくずリスト（左上配置） */
 .breadcrumb {
     font-size: 0.82rem; color: #666666; letter-spacing: 0.05em;
     display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.4rem;
@@ -72,7 +85,7 @@ body, html {
 }
 .read-tab.active { background: #2b2b2b; color: #faf9f6; border-color: #2b2b2b; }
 
-/* 案3 縦書き一覧スクロールコンテナ */
+/* 縦書き一覧スクロールコンテナ */
 .horizontal-scroll-container {
     display: flex !important; flex-direction: row-reverse !important;
     justify-content: flex-start !important; align-items: center;
@@ -93,7 +106,7 @@ body, html {
     font-size: 1.4rem; letter-spacing: 0.25em; line-height: 1.4; color: #2b2b2b; white-space: nowrap;
 }
 
-/* 案3 年月区切り（縦書きの年・月ラベル） */
+/* 年月区切り（縦書きの年・月ラベル） */
 .date-divider-card {
     writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;
     font-size: 0.88rem; color: #8c8476; letter-spacing: 0.2em;
@@ -101,7 +114,7 @@ body, html {
     display: flex; align-items: center; justify-content: center; font-family: serif;
 }
 
-/* ② 下書きタップ時のシンプルな文字リンク風モーダル */
+/* 下書きタップ時の文字リンク風モーダル */
 .card-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px);
