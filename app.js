@@ -109,7 +109,7 @@ function fetchMainHaikuData() {
     document.body.appendChild(script);
 }
 
-/* メインデータの受信と「西田上酢」「西田亮太」の厳密な作者絞り込み */
+/* 「西田上酢」「西田亮太」のご自身の作品のみ厳密抽出 */
 window.mainDataReceived = function(data) {
     try {
         if (!data || !data.table || !data.table.rows) return;
@@ -133,7 +133,6 @@ window.mainDataReceived = function(data) {
             const author = getVal(1) || '西田上酢';
             const authorKana = getVal(2) || 'にしだうえす';
 
-            // 「西田上酢」「西田亮太」以外の他人の俳句を完全除外
             const isMyAuthor = (author === '西田上酢' || author === '西田亮太' || author === 'UES' || !author);
             if (!isMyAuthor) continue;
 
@@ -331,7 +330,7 @@ function renderYomuList() {
         item._parsedDate = parseDateLabel(item.sakkuDate);
     });
 
-    // 左＝過去（古い順） ➔ 右＝未来（新しい順・最新句が一番右）の昇順ソート
+    // 古い順 ➔ 新しい順（昇順ソート）
     targetHaikus.sort((a, b) => {
         if (a._parsedDate.groupKey !== b._parsedDate.groupKey) {
             return a._parsedDate.groupKey.localeCompare(b._parsedDate.groupKey);
@@ -359,13 +358,13 @@ function renderYomuList() {
         container.appendChild(card);
     });
 
-    // 開いた時に自動で一番右端（最新句）にスクロールを合わせる
+    // 最新句（一番右）へスクロール位置を調整
     requestAnimationFrame(() => {
         container.scrollLeft = container.scrollWidth;
     });
 }
 
-/* モーダル表示 */
+/* モーダル表示（完成句/下書き別のボタンを挿入） */
 function onHaikuCardClicked(haikuObj) {
     activeSelectedHaiku = haikuObj;
     document.getElementById('modalPhrase').innerText = haikuObj.phrase;
@@ -374,20 +373,20 @@ function onHaikuCardClicked(haikuObj) {
     if (!actionsContainer) return;
 
     if (haikuObj.status === '完成句') {
+        // 完成句: [ 修正 ] [ 下書きへ ]
         actionsContainer.innerHTML = `
             <span class="text-action-btn primary" onclick="editSelectedHaiku()">修正</span>
             <span class="action-divider">|</span>
-            <span class="text-action-btn" onclick="moveHaikuToDraft()">下書きへ</span>
-            <span class="action-divider">|</span>
-            <span class="text-action-btn" onclick="closeHaikuDetailModal()">閉じる</span>
+            <span class="text-action-btn" onclick="changeHaikuStatus('下書き')">下書きへ</span>
         `;
     } else {
+        // 下書き: [ 完成句へ ] [ 修正 ] [ 削除 ]
         actionsContainer.innerHTML = `
-            <span class="text-action-btn primary" onclick="editSelectedHaiku()">修正</span>
+            <span class="text-action-btn primary" onclick="changeHaikuStatus('完成句')">完成句へ</span>
+            <span class="action-divider">|</span>
+            <span class="text-action-btn" onclick="editSelectedHaiku()">修正</span>
             <span class="action-divider">|</span>
             <span class="text-action-btn danger" onclick="deleteSelectedDraft()">削除</span>
-            <span class="action-divider">|</span>
-            <span class="text-action-btn" onclick="closeHaikuDetailModal()">閉じる</span>
         `;
     }
 
@@ -398,29 +397,32 @@ function closeHaikuDetailModal() {
     document.getElementById('haikuDetailModal').classList.add('hidden');
 }
 
-function moveHaikuToDraft() {
+/* ステータス直接書き換え（完成句へ / 下書きへ） */
+function changeHaikuStatus(targetStatus) {
     if (!activeSelectedHaiku) return;
     closeHaikuDetailModal();
 
     const params = new URLSearchParams();
     params.append('action', 'changeStatus');
-    params.append('status', '下書き');
+    params.append('status', targetStatus);
     params.append('rowIndex', activeSelectedHaiku.rowIndex);
 
     fetch(GAS_WEB_APP_URL, {
         method: 'POST',
-        mode: 'no-cors',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params.toString()
     }).then(() => {
         setTimeout(fetchMainHaikuData, 1200);
+    }).catch(() => {
+        setTimeout(fetchMainHaikuData, 1200);
     });
 }
 
+/* 下書き削除 */
 function deleteSelectedDraft() {
     if (!activeSelectedHaiku) return;
     
-    if (!confirm('この下書きを本当に削除しますか？\n（スプレッドシートから完全に消去されます）')) {
+    if (!confirm('この下書きを本当に削除しますか？\n（スプレッドシートから消去されます）')) {
         return;
     }
 
@@ -432,10 +434,11 @@ function deleteSelectedDraft() {
 
     fetch(GAS_WEB_APP_URL, {
         method: 'POST',
-        mode: 'no-cors',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params.toString()
     }).then(() => {
+        setTimeout(fetchMainHaikuData, 1200);
+    }).catch(() => {
         setTimeout(fetchMainHaikuData, 1200);
     });
 }
@@ -667,7 +670,6 @@ function submitHaiku(statusType) {
 
     fetch(GAS_WEB_APP_URL, {
         method: 'POST',
-        mode: 'no-cors',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params.toString()
     }).then(() => {
@@ -709,7 +711,6 @@ function processOfflineQueue() {
             for (let key in item) params.append(key, item[key]);
             fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
-                mode: 'no-cors',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: params.toString()
             });
