@@ -15,6 +15,13 @@ let currentReadTab = '完成句';
 let editingDraftHaiku = null; 
 let activeSelectedHaiku = null; 
 
+// おみ句じ用データプールと現在インデックス
+let omikujiPool = [];
+let omikujiIndex = 0;
+
+let touchStartX = 0;
+let touchStartY = 0;
+
 let currentHaikuData = {
     phrase: '',
     kigo: '',
@@ -36,24 +43,21 @@ function getTodayDateString() {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-// Googleの Date(2026,6,8) 形式や様々な日付表記を標準の YYYY-MM-DD に変換する関数
+// Googleの Date(2026,6,8) 形式や標準日付を YYYY-MM-DD に変換
 function normalizeDateString(rawDate) {
     if (!rawDate) return '';
     let str = String(rawDate).trim();
 
-    // Date(2026,6,8) や Date(2026, 6, 8) のパターンを解析
     if (str.includes('Date(')) {
         const matches = str.match(/\d+/g);
         if (matches && matches.length >= 3) {
             const yyyy = matches[0];
-            // Google APIのDateオブジェクトは月が0始まり(0=1月)のため +1 する
             const mm = String(parseInt(matches[1], 10) + 1).padStart(2, '0');
             const dd = String(parseInt(matches[2], 10)).padStart(2, '0');
             return `${yyyy}-${mm}-${dd}`;
         }
     }
 
-    // すでに YYYY/MM/DD や YYYY-MM-DD の場合
     str = str.replace(/\//g, '-');
     const parts = str.split('-');
     if (parts.length >= 3) {
@@ -66,10 +70,10 @@ function normalizeDateString(rawDate) {
     return str;
 }
 
-// 西暦・月を漢数字の縦書き用テキスト（二〇二六年七月）に変換
+// 西暦・月を漢数字の縦書き用テキストに変換
 function toKanjiYearMonth(dateStr) {
     const norm = normalizeDateString(dateStr);
-    if (!norm) return '日付未設定';
+    if (!norm) return '過去作品';
     
     const parts = norm.split('-');
     if (parts.length < 2) return norm;
@@ -99,6 +103,7 @@ window.onload = function() {
     restoreCachedMasterData();
     fetchMainHaikuData();
     fetchSaijikiMasterData();
+    initSwipeEvents();
 
     window.addEventListener('online', processOfflineQueue);
     processOfflineQueue();
@@ -118,7 +123,6 @@ function fetchMainHaikuData() {
 
     const script = document.createElement('script');
     script.id = 'mainHaikuScript';
-    // 日付セルを文字列として安全に受け取る設定
     script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=responseHandler:mainDataReceived&_=${new Date().getTime()}`;
     document.body.appendChild(script);
 }
@@ -136,7 +140,6 @@ window.mainDataReceived = function(data) {
 
             const getVal = (idx) => {
                 if (!c[idx]) return '';
-                // f (フォーマット済み表示文字列) があればそれを優先、なければ v
                 let val = (c[idx].f !== null && c[idx].f !== undefined) ? c[idx].f : c[idx].v;
                 return (val !== null && val !== undefined) ? String(val).trim() : '';
             };
@@ -144,8 +147,15 @@ window.mainDataReceived = function(data) {
             const phrase = getVal(0);
             const author = getVal(1);
             const authorKana = getVal(2);
-            const status = getVal(10) || '完成句'; // K列
-            const rawSakkuDate = getVal(11);       // L列
+            
+            // 全角・半角スペースを除去してステータス判定を安定化
+            let rawStatus = getVal(10).replace(/\s+/g, '');
+            let status = '完成句';
+            if (rawStatus.includes('下書き') || rawStatus.includes('shitagaki')) {
+                status = '下書き';
+            }
+
+            const rawSakkuDate = getVal(11);
 
             if (phrase && phrase !== '俳句' && phrase !== '句' && phrase !== 'A') {
                 haikuHistory.push({
@@ -155,7 +165,7 @@ window.mainDataReceived = function(data) {
                     kigo: getVal(3), parentKigo: getVal(4),
                     season: getVal(6), detailSeason: getVal(7),
                     status: status, 
-                    sakkuDate: normalizeDateString(rawSakkuDate) // 正規化した日付をセット
+                    sakkuDate: normalizeDateString(rawSakkuDate)
                 });
             }
 
@@ -282,32 +292,38 @@ function switchReadTab(status) {
     renderYomuList();
 }
 
-/* 縦書き一覧表示（年月区切り安全挿入） */
+/* 縦書き一覧表示（下書き判定強化版） */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
     container.innerHTML = '';
 
-    const myHaikus = haikuHistory.filter(h => (h.author === '西田上酢' || h.author === '西田亮太' || !h.author) && h.status === currentReadTab);
+    const myHaikus = haikuHistory.filter(h => {
+        const isAuthor = !h.author || h.author === '西田上酢' || h.author === '西田亮太' || h.author === '作者不詳';
+        return isAuthor && h.status === currentReadTab;
+    });
 
     if (myHaikus.length === 0) {
         container.innerHTML = `<div style="text-align:center; color:#888; margin:auto;">登録された${currentReadTab}はありません。</div>`;
         return;
     }
 
-    // 日付順にソート（新しい日付が先頭＝右側）
-    myHaikus.sort((a, b) => (b.sakkuDate || '').localeCompare(a.sakkuDate || ''));
+    myHaikus.sort((a, b) => {
+        if (a.sakkuDate && !b.sakkuDate) return -1;
+        if (!a.sakkuDate && b.sakkuDate) return 1;
+        return (b.sakkuDate || '').localeCompare(a.sakkuDate || '');
+    });
 
-    let lastYearMonth = '';
+    let lastYearMonth = 'INIT';
 
     myHaikus.forEach(item => {
-        const ym = item.sakkuDate ? item.sakkuDate.substring(0, 7) : '未設定';
+        const ym = item.sakkuDate ? item.sakkuDate.substring(0, 7) : '日付未記入';
         
         if (ym !== lastYearMonth) {
             lastYearMonth = ym;
             const divider = document.createElement('div');
             divider.className = 'date-divider-card';
-            divider.innerText = ym === '未設定' ? '日付未設定' : toKanjiYearMonth(item.sakkuDate);
+            divider.innerText = ym === '日付未記入' ? '過去作品' : toKanjiYearMonth(item.sakkuDate);
             container.appendChild(divider);
         }
 
@@ -335,23 +351,75 @@ function closeHaikuDetailModal() {
     document.getElementById('haikuDetailModal').classList.add('hidden');
 }
 
+/* ②追加機能：おみ句じ（ランダム開始＆矢印送りに対応） */
 function triggerRandomOmikuji() {
     const myHaikus = haikuHistory.filter(h => (h.author === '西田上酢' || h.author === '西田亮太' || !h.author) && h.status === '完成句');
-    const targetPool = myHaikus.length > 0 ? myHaikus : haikuHistory;
+    omikujiPool = myHaikus.length > 0 ? [...myHaikus] : [...haikuHistory];
 
-    if (targetPool.length === 0) {
+    if (omikujiPool.length === 0) {
         alert('鑑賞できる俳句がまだありません。');
         return;
     }
 
-    const randomIndex = Math.floor(Math.random() * targetPool.length);
-    const selectedHaiku = targetPool[randomIndex];
+    // シャッフル（ランダム順に並べ替え）
+    for (let i = omikujiPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [omikujiPool[i], omikujiPool[j]] = [omikujiPool[j], omikujiPool[i]];
+    }
 
-    document.getElementById('omikujiPhrase').innerText = selectedHaiku.phrase;
+    omikujiIndex = 0;
+    renderOmikujiDisplay();
 
     document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
     document.getElementById('omikujiRoomScreen').classList.add('active');
     updateCatVisibility(true);
+}
+
+function changeOmikujiHaiku(direction) {
+    if (omikujiIndex + direction >= 0 && omikujiIndex + direction < omikujiPool.length) {
+        omikujiIndex += direction;
+        renderOmikujiDisplay();
+    }
+}
+
+function renderOmikujiDisplay() {
+    const target = omikujiPool[omikujiIndex];
+    if (!target) return;
+
+    document.getElementById('omikujiPhrase').innerText = target.phrase;
+
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    if (prevBtn) {
+        if (omikujiIndex === 0) prevBtn.classList.add('disabled');
+        else prevBtn.classList.remove('disabled');
+    }
+    if (nextBtn) {
+        if (omikujiIndex === omikujiPool.length - 1) nextBtn.classList.add('disabled');
+        else nextBtn.classList.remove('disabled');
+    }
+}
+
+/* スマホのスワイプ操作イベントの初期化 */
+function initSwipeEvents() {
+    const room = document.getElementById('omikujiRoomScreen');
+    if (!room) return;
+
+    room.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    room.addEventListener('touchend', function(e) {
+        const diffX = e.changedTouches[0].clientX - touchStartX;
+        const diffY = e.changedTouches[0].clientY - touchStartY;
+        // 横スワイプ判定
+        if (Math.abs(diffX) > 35 && Math.abs(diffX) > Math.abs(diffY)) {
+            if (diffX > 0) changeOmikujiHaiku(1);  // 右スワイプで前へ
+            else changeOmikujiHaiku(-1);          // 左スワイプで次へ
+        }
+    }, { passive: true });
 }
 
 function editDraftHaiku() {
