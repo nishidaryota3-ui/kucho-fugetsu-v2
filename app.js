@@ -38,9 +38,9 @@ function getTodayDateString() {
 
 // 西暦・月を漢数字の縦書き用テキストに変換
 function toKanjiYearMonth(dateStr) {
-    if (!dateStr) return '';
+    if (!dateStr) return '日付未設定';
     const parts = dateStr.split('-');
-    if (parts.length < 2) return '';
+    if (parts.length < 2) return dateStr;
     
     const y = parts[0];
     const m = parseInt(parts[1], 10);
@@ -79,10 +79,15 @@ function restoreCachedMasterData() {
     } catch (e) {}
 }
 
-/* メインの「俳句集成」シートからデータ全取得 */
+/* メインの「俳句集成」シートからデータ全取得（キャッシュ回避タイムスタンプ付与） */
 function fetchMainHaikuData() {
+    const oldScript = document.getElementById('mainHaikuScript');
+    if (oldScript) oldScript.remove();
+
     const script = document.createElement('script');
-    script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?range=A:L&tqx=responseHandler:mainDataReceived&_=${new Date().getTime()}`;
+    script.id = 'mainHaikuScript';
+    // 全データ（A1:L2000など広範囲）を確実に取得するクエリ
+    script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tq=${encodeURIComponent('SELECT A,B,C,D,E,F,G,H,I,J,K,L')}&tqx=responseHandler:mainDataReceived&_=${new Date().getTime()}`;
     document.body.appendChild(script);
 }
 
@@ -97,7 +102,7 @@ window.mainDataReceived = function(data) {
             const c = rows[i].c;
             if (!c) continue;
 
-            const getVal = (idx) => (c[idx] && c[idx].v !== null) ? String(c[idx].v).trim() : '';
+            const getVal = (idx) => (c[idx] && c[idx].v !== null && c[idx].v !== undefined) ? String(c[idx].v).trim() : '';
             
             const phrase = getVal(0);
             const author = getVal(1);
@@ -105,12 +110,15 @@ window.mainDataReceived = function(data) {
             const status = getVal(10) || '完成句'; // K列
             const sakkuDate = getVal(11);          // L列
 
-            if (phrase && phrase !== '俳句' && phrase !== '句') {
+            if (phrase && phrase !== '俳句' && phrase !== '句' && phrase !== 'A') {
                 haikuHistory.push({
-                    phrase, author, authorKana,
+                    phrase, 
+                    author: author || '西田上酢', 
+                    authorKana: authorKana || 'にしだうえす',
                     kigo: getVal(3), parentKigo: getVal(4),
                     season: getVal(6), detailSeason: getVal(7),
-                    status, sakkuDate
+                    status: status, 
+                    sakkuDate: sakkuDate
                 });
             }
 
@@ -122,6 +130,7 @@ window.mainDataReceived = function(data) {
         authorDatabase = Object.keys(authorMap).map(name => ({ name, kana: authorMap[name] }));
         updateAuthorDatalist();
 
+        // 読む画面が開いている場合は再描写
         if (document.getElementById('readScreen').classList.contains('active')) {
             renderYomuList();
         }
@@ -172,7 +181,7 @@ function parseSeasonCode(str) {
     if (s.includes('haru') || s === '春') return 'haru';
     if (s.includes('natsu') || s === '夏') return 'natsu';
     if (s.includes('aki') || s === '秋') return 'aki';
-    if (s.includes('fuyu') || s.includes('huyu') || s === '冬') return 'fuyu';
+    if (s.includes('fuyu') || s.includes('huyu') || s === '冬') return 'huyu';
     if (s.includes('shinnen') || s === '新年') return 'shinnen';
     if (s.includes('muki') || s === '無季') return 'muki';
     return 'haru';
@@ -223,10 +232,11 @@ function cancelEmuMode() {
 }
 
 function startYomuMode() {
+    fetchMainHaikuData(); // 画面を開く際に毎回最新の全データを取得
     renderYomuList();
     document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
     document.getElementById('readScreen').classList.add('active');
-    updateCatVisibility(true); // 「読む」画面でおみ句じ猫を表示
+    updateCatVisibility(true);
 }
 
 function switchReadTab(status) {
@@ -236,33 +246,33 @@ function switchReadTab(status) {
     renderYomuList();
 }
 
-/* 案3 年月区切り挟み込み＋縦書き一覧のレンダリング */
+/* 年月区切り付き縦書き一覧表示 */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
     container.innerHTML = '';
 
-    const myHaikus = haikuHistory.filter(h => h.author === '西田上酢' && h.status === currentReadTab);
+    // 「西田上酢」の句、または作者名判定に当てはまる作品を抽出
+    const myHaikus = haikuHistory.filter(h => (h.author === '西田上酢' || h.author === '西田亮太' || !h.author) && h.status === currentReadTab);
 
     if (myHaikus.length === 0) {
         container.innerHTML = `<div style="text-align:center; color:#888; margin:auto;">登録された${currentReadTab}はありません。</div>`;
         return;
     }
 
-    // 作句日付順（降順：新しい日付が先頭＝右側）にソート
+    // 日付順にソート（降順）
     myHaikus.sort((a, b) => (b.sakkuDate || '').localeCompare(a.sakkuDate || ''));
 
     let lastYearMonth = '';
 
     myHaikus.forEach(item => {
-        const ym = item.sakkuDate ? item.sakkuDate.substring(0, 7) : ''; // YYYY-MM
+        const ym = item.sakkuDate ? item.sakkuDate.substring(0, 7) : '未設定';
         
-        // 年月が変わったら、縦書きの年月区切りカードを挿入
-        if (ym && ym !== lastYearMonth) {
+        if (ym !== lastYearMonth) {
             lastYearMonth = ym;
             const divider = document.createElement('div');
             divider.className = 'date-divider-card';
-            divider.innerText = toKanjiYearMonth(item.sakkuDate);
+            divider.innerText = ym === '未設定' ? '日付未設定' : toKanjiYearMonth(item.sakkuDate);
             container.appendChild(divider);
         }
 
@@ -278,7 +288,6 @@ function renderYomuList() {
     });
 }
 
-/* 句タップ時の挙動（下書きの場合のみ編集用モーダルを開く） */
 function onHaikuCardClicked(haikuObj) {
     if (haikuObj.status === '下書き') {
         activeSelectedHaiku = haikuObj;
@@ -291,9 +300,8 @@ function closeHaikuDetailModal() {
     document.getElementById('haikuDetailModal').classList.add('hidden');
 }
 
-/* ②追加機能：おみ句じ猫タップ時のランダム鑑賞 */
 function triggerRandomOmikuji() {
-    const myHaikus = haikuHistory.filter(h => h.author === '西田上酢' && h.status === '完成句');
+    const myHaikus = haikuHistory.filter(h => (h.author === '西田上酢' || h.author === '西田亮太' || !h.author) && h.status === '完成句');
     const targetPool = myHaikus.length > 0 ? myHaikus : haikuHistory;
 
     if (targetPool.length === 0) {
@@ -308,7 +316,7 @@ function triggerRandomOmikuji() {
 
     document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
     document.getElementById('omikujiRoomScreen').classList.add('active');
-    updateCatVisibility(true); // 猫ボタンは表示を維持
+    updateCatVisibility(true);
 }
 
 function editDraftHaiku() {
@@ -463,7 +471,7 @@ function submitHaiku(statusType) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params.toString()
     }).then(() => {
-        setTimeout(fetchMainHaikuData, 1000);
+        setTimeout(fetchMainHaikuData, 1500); // 1.5秒後にスプレッドシートから全件再取得
         goToStep(4);
     }).catch(err => {
         console.error(err);
@@ -475,10 +483,8 @@ function submitHaiku(statusType) {
 function finishAndReturn() {
     if (editingDraftHaiku) {
         editingDraftHaiku = null;
-        startYomuMode();
-    } else {
-        goToStartScreen();
     }
+    startYomuMode();
 }
 
 function saveToOfflineQueue(data) {
@@ -510,7 +516,7 @@ function processOfflineQueue() {
             });
         });
         localStorage.removeItem('hugetsu_offline_queue');
-        setTimeout(fetchMainHaikuData, 1000);
+        setTimeout(fetchMainHaikuData, 1500);
     } catch (e) {}
 }
 
