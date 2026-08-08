@@ -1,4 +1,4 @@
-// ① 「風月」自身のスプレッドシートID（登録・閲覧用）
+// ① 「風月」自身のスプレッドシートID
 const SPREADSHEET_ID = '1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg';
 
 // ② 共通の「歳時記データベース」スプレッドシートID
@@ -12,7 +12,7 @@ let authorDatabase = [];
 let haikuHistory = [];    
 
 let currentReadTab = '完成句'; 
-let editingDraftHaiku = null; 
+let editingDraftHaiku = null; // 編集中の下書きオブジェクト（rowIndexを保持）
 let activeSelectedHaiku = null; 
 
 let omikujiPool = [];
@@ -24,7 +24,7 @@ let touchStartY = 0;
 let currentHaikuData = {
     phrase: '', kigo: '', parentKigo: '', parentKana: '',
     season: 'haru', detailSeason: '', author: '西田上酢', authorKana: 'にしだうえす',
-    sakkuDate: '', status: '完成句'
+    sakkuDate: '', status: '完成句', rowIndex: 0
 };
 
 function getTodayDateString() {
@@ -35,19 +35,15 @@ function getTodayDateString() {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-// 数字を漢数字（2023 ➔ 二〇二三）に変換
 function toKanjiNum(str) {
     const numMap = {'0':'〇', '1':'一', '2':'二', '3':'三', '4':'四', '5':'五', '6':'六', '7':'七', '8':'八', '9':'九'};
     return String(str).split('').map(char => numMap[char] || char).join('');
 }
 
-// 日付文字列から統一した比較用キーと見出しテキストを安全に生成する関数
 function parseDateLabel(dateStr) {
     if (!dateStr) return { key: '0000-00', label: '過去作品' };
-    
     let str = String(dateStr).trim();
 
-    // Date(2026,6,8) 形式の変換
     if (str.includes('Date(')) {
         const m = str.match(/\d+/g);
         if (m && m.length >= 3) {
@@ -55,29 +51,23 @@ function parseDateLabel(dateStr) {
         }
     }
 
-    // スラッシュやドットをハイフンに統一
     str = str.replace(/[/.]/g, '-');
     const parts = str.split('-').map(p => p.trim()).filter(Boolean);
 
-    // パターン1: "2023" や 2023 (4桁の年のみ)
     if (parts.length === 1 && /^\d{4}$/.test(parts[0])) {
-        const y = parts[0];
-        return { key: `${y}-00`, label: `${toKanjiNum(y)}年` };
+        return { key: `${parts[0]}-00`, label: `${toKanjiNum(parts[0])}年` };
     }
 
-    // パターン2: "2023-05" や "2023-05-12"
     if (parts.length >= 2 && /^\d{4}$/.test(parts[0])) {
         const y = parts[0];
         const mNum = parseInt(parts[1], 10);
         if (!isNaN(mNum)) {
             const monthMap = {1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十', 11:'十一', 12:'十二'};
             const mKanji = monthMap[mNum] || mNum;
-            const mPad = String(mNum).padStart(2, '0');
-            return { key: `${y}-${mPad}`, label: `${toKanjiNum(y)}年 ${mKanji}月` };
+            return { key: `${y}-${String(mNum).padStart(2, '0')}`, label: `${toKanjiNum(y)}年 ${mKanji}月` };
         }
     }
 
-    // 判定できなかった場合
     return { key: '0000-00', label: '過去作品' };
 }
 
@@ -93,6 +83,7 @@ window.onload = function() {
     fetchMainHaikuData();
     fetchSaijikiMasterData();
     initSwipeEvents();
+    initKeyboardEvents();
 
     window.addEventListener('online', processOfflineQueue);
     processOfflineQueue();
@@ -105,7 +96,7 @@ function restoreCachedMasterData() {
     } catch (e) {}
 }
 
-/* スプレッドシートからのデータ全取得 */
+/* スプレッドシートからの全データ取得（行番号 rowIndex も取得） */
 function fetchMainHaikuData() {
     const oldScript = document.getElementById('mainHaikuScript');
     if (oldScript) oldScript.remove();
@@ -140,12 +131,15 @@ window.mainDataReceived = function(data) {
             const authorKana = getVal(2) || 'にしだうえす';
             const status = getVal(10) || '完成句'; // K列
             const rawDate = getVal(11);            // L列
+            const rowIndex = i + 1;                // 1始まりのシート行番号
 
             haikuHistory.push({
                 phrase, author, authorKana,
-                kigo: getVal(3), parentKigo: getVal(4),
+                kigo: getVal(3), 
+                parentKigo: getVal(4), // E列（親季語）
                 season: getVal(6), detailSeason: getVal(7),
-                status: status, sakkuDate: rawDate
+                status: status, sakkuDate: rawDate,
+                rowIndex: rowIndex
             });
 
             if (author && author !== '作者名') {
@@ -240,6 +234,7 @@ function goToStartScreen() {
 function startEmuMode() {
     updateCatVisibility(false);
     editingDraftHaiku = null;
+    currentHaikuData.rowIndex = 0;
     document.getElementById('inputPhrase').value = '';
     document.getElementById('authorInput').value = '西田上酢';
     document.getElementById('authorKanaInput').value = 'にしだうえす';
@@ -268,25 +263,52 @@ function switchReadTab(status) {
     renderYomuList();
 }
 
-/* 一覧描画処理（「2023」「2025」などの数値・年のみ入力にも対応） */
+/* 🔍 E列（親季語）でのさりげないリアルタイム絞り込み検索 */
+function onKigoFilterInputChanged() {
+    const query = document.getElementById('kigoFilterInput').value.trim();
+    const clearBtn = document.getElementById('clearKigoFilterBtn');
+    if (clearBtn) clearBtn.classList.toggle('hidden', query === '');
+    renderYomuList();
+}
+
+function clearKigoFilter() {
+    const input = document.getElementById('kigoFilterInput');
+    if (input) input.value = '';
+    const clearBtn = document.getElementById('clearKigoFilterBtn');
+    if (clearBtn) clearBtn.classList.add('hidden');
+    renderYomuList();
+}
+
+/* 一覧描画（E列親季語検索対応） */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
     container.innerHTML = '';
 
-    const targetHaikus = haikuHistory.filter(h => h.status === currentReadTab);
+    const filterQuery = document.getElementById('kigoFilterInput') ? document.getElementById('kigoFilterInput').value.trim().toLowerCase() : '';
+
+    // タブ（完成句/下書き） ＆ E列（親季語）での絞り込み
+    const targetHaikus = haikuHistory.filter(h => {
+        const matchTab = (h.status === currentReadTab);
+        let matchKigo = true;
+        if (filterQuery !== '') {
+            // E列（parentKigo）または D列（kigo）で部分一致検索
+            const targetStr = ((h.parentKigo || '') + ' ' + (h.kigo || '')).toLowerCase();
+            matchKigo = targetStr.includes(filterQuery);
+        }
+        return matchTab && matchKigo;
+    });
 
     if (targetHaikus.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:#888; margin:auto;">登録された${currentReadTab}はありません。</div>`;
+        const msg = filterQuery ? `「${filterQuery}」に該当する${currentReadTab}はありません。` : `登録された${currentReadTab}はありません。`;
+        container.innerHTML = `<div style="text-align:center; color:#888; margin:auto; font-size:0.9rem;">${msg}</div>`;
         return;
     }
 
-    // 各句の日付情報を解析
     targetHaikus.forEach(item => {
         item._parsedDate = parseDateLabel(item.sakkuDate);
     });
 
-    // 新しい日付順（降順）にソート
     targetHaikus.sort((a, b) => b._parsedDate.key.localeCompare(a._parsedDate.key));
 
     let lastKey = '';
@@ -294,7 +316,6 @@ function renderYomuList() {
     targetHaikus.forEach(item => {
         const dateInfo = item._parsedDate;
         
-        // 年月グループが変わったら見出しカードを配置
         if (dateInfo.key !== lastKey) {
             lastKey = dateInfo.key;
             const divider = document.createElement('div');
@@ -369,6 +390,23 @@ function renderOmikujiDisplay() {
     if (nextBtn) nextBtn.classList.toggle('disabled', omikujiIndex === omikujiPool.length - 1);
 }
 
+/* PCキーボード矢印キー（← →）での「おみ句じ」送り */
+function initKeyboardEvents() {
+    document.addEventListener('keydown', function(e) {
+        const omikujiScreen = document.getElementById('omikujiRoomScreen');
+        if (!omikujiScreen || !omikujiScreen.classList.contains('active')) return;
+
+        // 入力フォーム等にフォーカスがある時はスキップ
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+            changeOmikujiHaiku(-1); // 右矢印/上矢印で前へ
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+            changeOmikujiHaiku(1);  // 左矢印/下矢印で次へ
+        }
+    });
+}
+
 function initSwipeEvents() {
     const room = document.getElementById('omikujiRoomScreen');
     if (!room) return;
@@ -388,11 +426,13 @@ function initSwipeEvents() {
     }, { passive: true });
 }
 
+/* 下書き編集モード（元の行番号 rowIndex を保持） */
 function editDraftHaiku() {
     closeHaikuDetailModal();
     if (!activeSelectedHaiku) return;
 
     editingDraftHaiku = activeSelectedHaiku;
+    currentHaikuData.rowIndex = activeSelectedHaiku.rowIndex || 0; // 元の行番号を保持
     
     document.getElementById('inputPhrase').value = activeSelectedHaiku.phrase;
     document.getElementById('kigoInput').value = activeSelectedHaiku.parentKigo || activeSelectedHaiku.kigo || '';
@@ -506,6 +546,7 @@ function goToStep3() {
     goToStep(3);
 }
 
+/* 上書き対応送信機能 */
 function submitHaiku(statusType) {
     currentHaikuData.status = statusType;
 
@@ -523,7 +564,8 @@ function submitHaiku(statusType) {
         season: currentHaikuData.season,
         detailSeason: currentHaikuData.detailSeason,
         status: statusType,
-        sakkuDate: dateVal || currentHaikuData.sakkuDate || getTodayDateString()
+        sakkuDate: dateVal || currentHaikuData.sakkuDate || getTodayDateString(),
+        rowIndex: currentHaikuData.rowIndex || 0 // 既存の行番号をGASへ送る
     };
 
     const compTitle = document.getElementById('completeTitle');
@@ -551,6 +593,7 @@ function submitHaiku(statusType) {
 
 function finishAndReturn() {
     if (editingDraftHaiku) editingDraftHaiku = null;
+    currentHaikuData.rowIndex = 0;
     startYomuMode();
 }
 
@@ -590,5 +633,6 @@ function processOfflineQueue() {
 function resetForm() {
     document.getElementById('inputPhrase').value = '';
     document.getElementById('kigoInput').value = '';
+    currentHaikuData.rowIndex = 0;
     goToStep(1);
 }
