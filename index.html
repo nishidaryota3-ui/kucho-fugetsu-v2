@@ -4,55 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>おみ句じ句帳 - 風月 v2</title>
+    <title>風月 v2</title>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="句帳 風月">
-    <meta name="application-name" content="句帳 風月">
+    <meta name="apple-mobile-web-app-title" content="風月">
+    <meta name="application-name" content="風月">
     <meta name="theme-color" content="#faf9f6">
     
     <link rel="icon" type="image/png" sizes="192x192" href="icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
     <link rel="manifest" href="manifest.json">
 
-    <!-- デザインファイルの読み込み -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- 🚪 スタート画面（「読む」「詠む」の選択） -->
+    <!-- 🚪 ① トップ画面（アイコン2つを並べる） -->
     <div id="startScreen" class="step-screen active">
-        <div class="start-menu-container">
-            <h1 class="app-title">風月</h1>
-            <div class="start-btn-group">
-                <button class="mode-btn" onclick="startYomuMode()">
-                    <span class="mode-title">読む</span>
-                    <span class="mode-sub">西田上酢の作品鑑賞・推敲</span>
-                </button>
-                <button class="mode-btn primary" onclick="startEmuMode()">
-                    <span class="mode-title">詠む</span>
-                    <span class="mode-sub">新しい句を投句・記録する</span>
-                </button>
+        <div class="top-icon-container">
+            <!-- 読む（今までの作品） -->
+            <div class="top-icon-block" onclick="startYomuMode()">
+                <img src="icon_top_input.png" alt="読む" class="top-icon-img">
+                <span class="top-icon-sub">今までの作品</span>
+            </div>
+            
+            <!-- 詠む（俳句の入力） -->
+            <div class="top-icon-block" onclick="startEmuMode()">
+                <img src="icon_top_output.png" alt="詠む" class="top-icon-img">
+                <span class="top-icon-sub">俳句の入力</span>
             </div>
         </div>
     </div>
 
-    <!-- 📖 「読む」画面（西田上酢作品の閲覧） -->
+    <!-- 📖 ②「読む」画面 -->
     <div id="readScreen" class="step-screen">
-        <div class="step-title">【西田上酢 句帳】</div>
+        <!-- ② パンくず ＆ タイトルヘッダー -->
+        <div class="read-header">
+            <div class="breadcrumb">
+                <span class="link" onclick="goToStartScreen()">home</span>
+                <span class="separator">&lt;</span>
+                <span class="current">俳句を読む</span>
+            </div>
+            <div class="read-title">西田上酢 句帳</div>
+        </div>
         
+        <!-- ③ 完成句 / 下書き 切替タブ -->
         <div class="read-tab-group">
             <button id="tabKansei" class="read-tab active" onclick="switchReadTab('完成句')">完成句</button>
             <button id="tabShitagaki" class="read-tab" onclick="switchReadTab('下書き')">下書き</button>
         </div>
 
-        <div id="readHaikuList" class="read-list-container">
-            <!-- JSで動的に「西田上酢」の句が挿入されます -->
+        <!-- ③＆④ 縦書き一覧スクロールコンテナ -->
+        <div id="readHaikuList" class="horizontal-scroll-container saijiki-scroll-list">
+            <!-- JSで動的に縦書きの句が配置されます -->
         </div>
+    </div>
 
-        <div class="btn-group" style="margin-top: 10px;">
-            <button class="btn btn-outline" onclick="goToStartScreen()">最初の画面に戻る</button>
+    <!-- 💡 案1：句タップ時の詳細・編集モーダル（ポップアップ） -->
+    <div id="haikuDetailModal" class="card-overlay hidden" onclick="closeHaikuDetailModal()">
+        <div class="modal-card-content" onclick="event.stopPropagation()">
+            <div id="modalPhrase" class="modal-phrase"></div>
+            <div id="modalDate" class="modal-date"></div>
+            
+            <div id="modalActionArea" class="modal-actions" style="display: none;">
+                <button class="btn" onclick="editDraftHaiku()">この下書きを推敲・編集する</button>
+            </div>
+            <button class="btn btn-outline" style="margin-top: 10px;" onclick="closeHaikuDetailModal()">閉じる</button>
         </div>
     </div>
 
@@ -64,15 +82,15 @@
                 <input type="text" id="inputPhrase" class="dock-input" placeholder="ここに一句入力してください" autocomplete="off">
             </div>
             <div class="btn-group">
-                <button class="btn btn-outline" onclick="goToStartScreen()">戻る</button>
+                <button class="btn btn-outline" onclick="cancelEmuMode()">戻る</button>
                 <button class="btn" onclick="goToStep2()">次へ（季語確認）</button>
             </div>
         </div>
     </div>
 
-    <!-- 🏷️ ステップ2：季語・作者・日付確認画面 -->
+    <!-- 🏷️ ステップ2：情報の確認（⑥見出し変更） -->
     <div id="step2" class="step-screen">
-        <div class="step-title">【二】 季語・作者・作句日の確認</div>
+        <div class="step-title">【二】 情報の確認</div>
         <div class="step2-content">
             <div class="kigo-check-card">
                 <div class="kigo-prompt">
@@ -122,15 +140,16 @@
                     </select>
                 </div>
 
+                <!-- ⑦ デフォルト読み仮名を「にしだうえす」にセット -->
                 <div class="form-group" style="margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
                     <label class="form-label">作者名</label>
-                    <input type="text" id="authorInput" class="text-input" list="authorList" placeholder="西田上酢" oninput="onAuthorInputChanged()" onchange="onAuthorNameChange()">
+                    <input type="text" id="authorInput" class="text-input" list="authorList" value="西田上酢" oninput="onAuthorInputChanged()" onchange="onAuthorNameChange()">
                     <datalist id="authorList"></datalist>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">作者名（よみがな）</label>
-                    <input type="text" id="authorKanaInput" class="text-input" list="authorKanaList" placeholder="にしだ じょうす" oninput="onAuthorKanaInputChanged()">
+                    <input type="text" id="authorKanaInput" class="text-input" list="authorKanaList" value="にしだうえす" oninput="onAuthorKanaInputChanged()">
                     <datalist id="authorKanaList"></datalist>
                 </div>
 
@@ -165,6 +184,7 @@
             </div>
         </div>
 
+        <!-- ⑧ ボタン構成（現状の見やすい配置） -->
         <div class="btn-group" style="flex-direction: column; gap: 8px;">
             <div style="display: flex; gap: 10px; width: 100%;">
                 <button id="submitKanseiBtn" class="btn" onclick="submitHaiku('完成句')">完成句</button>
@@ -181,7 +201,7 @@
             <p style="font-size: 0.9rem; color: #666; line-height: 1.6;">句帳（スプレッドシート）へ保存されました。</p>
         </div>
         <div class="btn-group">
-            <button class="btn btn-outline" onclick="goToStartScreen()">最初の画面へ</button>
+            <button class="btn btn-outline" onclick="finishAndReturn()">一覧／トップへ戻る</button>
             <button class="btn" onclick="resetForm()">続けて次の句を入力</button>
         </div>
     </div>
