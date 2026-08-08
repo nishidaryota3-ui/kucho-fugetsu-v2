@@ -12,7 +12,7 @@ let authorDatabase = [];
 let haikuHistory = [];    
 
 let currentReadTab = '完成句'; 
-let editingHaikuObj = null; // 修正中の句オブジェクト（完成句・下書き共通）
+let editingHaikuObj = null; 
 let activeSelectedHaiku = null; 
 
 let omikujiPool = [];
@@ -41,7 +41,7 @@ function toKanjiNum(str) {
 }
 
 function parseDateLabel(dateStr) {
-    if (!dateStr) return { key: '0000-00', label: '過去作品' };
+    if (!dateStr) return { groupKey: '0000-00', exactKey: '0000-00-00', label: '過去作品' };
     let str = String(dateStr).trim();
 
     if (str.includes('Date(')) {
@@ -55,7 +55,8 @@ function parseDateLabel(dateStr) {
     const parts = str.split('-').map(p => p.trim()).filter(Boolean);
 
     if (parts.length === 1 && /^\d{4}$/.test(parts[0])) {
-        return { key: `${parts[0]}-00`, label: `${toKanjiNum(parts[0])}年` };
+        const y = parts[0];
+        return { groupKey: `${y}-00`, exactKey: `${y}-00-00`, label: `${toKanjiNum(y)}年` };
     }
 
     if (parts.length >= 2 && /^\d{4}$/.test(parts[0])) {
@@ -64,11 +65,13 @@ function parseDateLabel(dateStr) {
         if (!isNaN(mNum)) {
             const monthMap = {1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十', 11:'十一', 12:'十二'};
             const mKanji = monthMap[mNum] || mNum;
-            return { key: `${y}-${String(mNum).padStart(2, '0')}`, label: `${toKanjiNum(y)}年 ${mKanji}月` };
+            const mPad = String(mNum).padStart(2, '0');
+            const dPad = parts[2] ? String(parseInt(parts[2], 10)).padStart(2, '0') : '00';
+            return { groupKey: `${y}-${mPad}`, exactKey: `${y}-${mPad}-${dPad}`, label: `${toKanjiNum(y)}年 ${mKanji}月` };
         }
     }
 
-    return { key: '0000-00', label: '過去作品' };
+    return { groupKey: '0000-00', exactKey: '0000-00-00', label: '過去作品' };
 }
 
 window.onload = function() {
@@ -96,7 +99,6 @@ function restoreCachedMasterData() {
     } catch (e) {}
 }
 
-/* スプレッドシートからのデータ取得 */
 function fetchMainHaikuData() {
     const oldScript = document.getElementById('mainHaikuScript');
     if (oldScript) oldScript.remove();
@@ -131,12 +133,12 @@ window.mainDataReceived = function(data) {
             const authorKana = getVal(2) || 'にしだうえす';
             const status = getVal(10) || '完成句';
             const rawDate = getVal(11);
-            const rowIndex = i + 1; // スプレッドシート上の行番号
+            const rowIndex = i + 1;
 
             haikuHistory.push({
                 phrase, author, authorKana,
                 kigo: getVal(3), 
-                parentKigo: getVal(4), // E列（親季語）
+                parentKigo: getVal(4),
                 season: getVal(6), detailSeason: getVal(7),
                 status: status, sakkuDate: rawDate,
                 rowIndex: rowIndex
@@ -158,7 +160,6 @@ window.mainDataReceived = function(data) {
     }
 };
 
-/* 歳時記データ取得 */
 function fetchSaijikiMasterData() {
     const sheetName = encodeURIComponent('歳時記データベース');
     const script = document.createElement('script');
@@ -224,7 +225,6 @@ function updateCatVisibility(show) {
     else cat.classList.add('hidden');
 }
 
-/* ナビゲーション */
 function goToStartScreen() {
     updateCatVisibility(false);
     document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
@@ -263,7 +263,6 @@ function switchReadTab(status) {
     renderYomuList();
 }
 
-/* 【案B】 検索窓の展開/格納処理 */
 function expandSearchInput() {
     const wrapper = document.getElementById('searchWrapper');
     const input = document.getElementById('kigoFilterInput');
@@ -298,7 +297,7 @@ function clearKigoFilter(event) {
     renderYomuList();
 }
 
-/* 一覧描画処理 */
+/* 縦書き一覧描画（最新日付が常に最右端に来る昇順ソートへ完全修正） */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
@@ -326,15 +325,22 @@ function renderYomuList() {
         item._parsedDate = parseDateLabel(item.sakkuDate);
     });
 
-    targetHaikus.sort((a, b) => b._parsedDate.key.localeCompare(a._parsedDate.key));
+    // 1. 年月グループを古い順➔新しい順（昇順）でソート
+    // 2. 同年月グループ内でも古い日➔新しい日（昇順）でソート
+    targetHaikus.sort((a, b) => {
+        if (a._parsedDate.groupKey !== b._parsedDate.groupKey) {
+            return a._parsedDate.groupKey.localeCompare(b._parsedDate.groupKey);
+        }
+        return a._parsedDate.exactKey.localeCompare(b._parsedDate.exactKey);
+    });
 
-    let lastKey = '';
+    let lastGroupKey = '';
 
     targetHaikus.forEach(item => {
         const dateInfo = item._parsedDate;
         
-        if (dateInfo.key !== lastKey) {
-            lastKey = dateInfo.key;
+        if (dateInfo.groupKey !== lastGroupKey) {
+            lastGroupKey = dateInfo.groupKey;
             const divider = document.createElement('div');
             divider.className = 'date-divider-card';
             divider.innerText = dateInfo.label;
@@ -348,20 +354,89 @@ function renderYomuList() {
         container.appendChild(card);
     });
 
+    // 初期スクロール位置を一番右端（最新）へ合わせる
     requestAnimationFrame(() => {
-        container.scrollLeft = 0;
+        container.scrollLeft = container.scrollWidth;
     });
 }
 
-/* 句タップ時：完成句・下書き共に修正用モーダルを表示 */
+/* モーダル表示（完成句・下書き別アクション動的生成） */
 function onHaikuCardClicked(haikuObj) {
     activeSelectedHaiku = haikuObj;
     document.getElementById('modalPhrase').innerText = haikuObj.phrase;
+
+    const actionsContainer = document.getElementById('modalActions');
+    if (!actionsContainer) return;
+
+    if (haikuObj.status === '完成句') {
+        // 完成句モーダル: 修正 | 下書きへ | 閉じる
+        actionsContainer.innerHTML = `
+            <span class="text-action-btn primary" onclick="editSelectedHaiku()">修正</span>
+            <span class="action-divider">|</span>
+            <span class="text-action-btn" onclick="moveHaikuToDraft()">下書きへ</span>
+            <span class="action-divider">|</span>
+            <span class="text-action-btn" onclick="closeHaikuDetailModal()">閉じる</span>
+        `;
+    } else {
+        // 下書きモーダル: 修正 | 削除 | 閉じる
+        actionsContainer.innerHTML = `
+            <span class="text-action-btn primary" onclick="editSelectedHaiku()">修正</span>
+            <span class="action-divider">|</span>
+            <span class="text-action-btn danger" onclick="deleteSelectedDraft()">削除</span>
+            <span class="action-divider">|</span>
+            <span class="text-action-btn" onclick="closeHaikuDetailModal()">閉じる</span>
+        `;
+    }
+
     document.getElementById('haikuDetailModal').classList.remove('hidden');
 }
 
 function closeHaikuDetailModal() {
     document.getElementById('haikuDetailModal').classList.add('hidden');
+}
+
+/* 完成句を「下書き」へステータス変更 */
+function moveHaikuToDraft() {
+    if (!activeSelectedHaiku) return;
+    closeHaikuDetailModal();
+
+    const params = new URLSearchParams();
+    params.append('action', 'changeStatus');
+    params.append('status', '下書き');
+    params.append('rowIndex', activeSelectedHaiku.rowIndex);
+
+    fetch(GAS_WEB_APP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    }).then(() => {
+        setTimeout(fetchMainHaikuData, 1200);
+    });
+}
+
+/* 下書き句の直接削除処理 */
+function deleteSelectedDraft() {
+    if (!activeSelectedHaiku) return;
+    
+    if (!confirm('この下書きを本当に削除しますか？\n（スプレッドシートから完全に消去されます）')) {
+        return;
+    }
+
+    closeHaikuDetailModal();
+
+    const params = new URLSearchParams();
+    params.append('action', 'delete');
+    params.append('rowIndex', activeSelectedHaiku.rowIndex);
+
+    fetch(GAS_WEB_APP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    }).then(() => {
+        setTimeout(fetchMainHaikuData, 1200);
+    });
 }
 
 /* おみ句じ猫機能 */
@@ -440,13 +515,12 @@ function initSwipeEvents() {
     }, { passive: true });
 }
 
-/* 修正モード実行（完成句・下書き共通） */
 function editSelectedHaiku() {
     closeHaikuDetailModal();
     if (!activeSelectedHaiku) return;
 
     editingHaikuObj = activeSelectedHaiku;
-    currentHaikuData.rowIndex = activeSelectedHaiku.rowIndex || 0; // 元の行番号を保持
+    currentHaikuData.rowIndex = activeSelectedHaiku.rowIndex || 0;
     
     document.getElementById('inputPhrase').value = activeSelectedHaiku.phrase;
     document.getElementById('kigoInput').value = activeSelectedHaiku.parentKigo || activeSelectedHaiku.kigo || '';
@@ -568,6 +642,7 @@ function submitHaiku(statusType) {
     const dateVal = document.getElementById('sakkuDateInput').value;
 
     const payload = {
+        action: 'save',
         phrase: currentHaikuData.phrase,
         author: authorVal || currentHaikuData.author || '西田上酢',
         authorKana: authorKanaVal || currentHaikuData.authorKana || 'にしだうえす',
