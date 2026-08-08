@@ -20,7 +20,7 @@
 </head>
 <body>
 
-    <!-- 🐾 ②追加：おみ句じ猫ボタン（「読む」画面で常に左下に配置） -->
+    <!-- 🐾 おみ句じ猫ボタン（「読む」画面で左下に配置） -->
     <img id="fixedCatBtn" src="omikuji-cat.png" alt="おみ句じを引く" class="fixed-cat-trigger hidden" onclick="triggerRandomOmikuji()" title="おみ句じを引く">
 
     <!-- 🚪 ① トップ画面 -->
@@ -39,7 +39,7 @@
 
     <!-- 📖 「読む」画面 -->
     <div id="readScreen" class="step-screen">
-        <!-- ① パンくず（左上） ＆ 中央タイトル -->
+        <!-- パンくず（左上） ＆ 中央タイトル -->
         <div class="read-header">
             <div class="breadcrumb">
                 <span class="link" onclick="goToStartScreen()">home</span>
@@ -55,13 +55,13 @@
             <button id="tabShitagaki" class="read-tab" onclick="switchReadTab('下書き')">下書き</button>
         </div>
 
-        <!-- 案3 年月区切り入りの縦書き一覧コンテナ -->
+        <!-- 縦書き一覧スクロールコンテナ -->
         <div id="readHaikuList" class="horizontal-scroll-container saijiki-scroll-list">
             <!-- JSで動的に縦書きの句と年月区切りが配置されます -->
         </div>
     </div>
 
-    <!-- 🎲 ②追加：猫タップ時のおみ句じ（一句一画面）鑑賞スクリーン -->
+    <!-- 🎲 猫タップ時のおみ句じ（一句一画面：矢印・スワイプ対応）スクリーン -->
     <div id="omikujiRoomScreen" class="step-screen">
         <div class="read-header">
             <div class="breadcrumb">
@@ -72,12 +72,17 @@
                 <span class="current">おみ句じ</span>
             </div>
         </div>
-        <div class="haiku-screen" onclick="triggerRandomOmikuji()">
+
+        <!-- 左右ナビゲーション矢印 (< >) -->
+        <button id="prevBtn" class="nav-arrow arrow-right" onclick="changeOmikujiHaiku(-1)">＞</button> 
+        <button id="nextBtn" class="nav-arrow arrow-left" onclick="changeOmikujiHaiku(1)">＜</button>  
+
+        <div class="haiku-screen">
             <p id="omikujiPhrase" class="phrase"></p>
         </div>
     </div>
 
-    <!-- 💡 ②下書きタップ時のシンプルな選択（フローティングボックス） -->
+    <!-- 💡 下書きタップ時のシンプルな選択（フローティングボックス） -->
     <div id="haikuDetailModal" class="card-overlay hidden" onclick="closeHaikuDetailModal()">
         <div class="modal-card-content" onclick="event.stopPropagation()">
             <div id="modalPhrase" class="modal-phrase"></div>
