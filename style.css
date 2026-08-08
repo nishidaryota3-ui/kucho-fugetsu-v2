@@ -15,7 +15,7 @@ body, html {
 }
 .step-screen.active { display: flex !important; }
 
-/* 🐾 おみ句じ猫ボタン（左下固定） */
+/* 🐾 おみ句じ猫ボタン */
 .fixed-cat-trigger {
     position: fixed; bottom: calc(10px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left));
     width: 140px !important; height: auto !important; cursor: pointer; z-index: 80;
@@ -25,7 +25,7 @@ body, html {
 .fixed-cat-trigger:active { transform: scale(0.95); }
 .fixed-cat-trigger.hidden { display: none !important; }
 
-/* 🏹 左右矢印ナビゲーションボタン (< >) */
+/* 🏹 左右矢印ボタン */
 .nav-arrow { 
     position: absolute; top: 50%; transform: translateY(-50%);
     font-size: 1.2rem; color: #a0998c; cursor: pointer; padding: 25px 15px;
@@ -57,17 +57,36 @@ body, html {
     letter-spacing: 0.08em; font-family: sans-serif; text-align: center;
 }
 
-/* 「読む」画面のヘッダー：左上パンくず ＆ 中央タイトル */
+/* 「読む」画面のヘッダー */
 .read-header {
     width: 100%; position: relative; display: flex; flex-direction: column;
-    align-items: flex-start; justify-content: center; min-height: 48px; z-index: 30;
+    justify-content: center; min-height: 48px; z-index: 30;
+}
+.read-header-top {
+    display: flex; justify-content: space-between; align-items: center; width: 100%;
 }
 .read-title-center {
     width: 100%; text-align: center; font-size: 1.25rem; font-weight: 500;
-    letter-spacing: 0.15em; color: #2b2b2b; margin-top: 4px;
+    letter-spacing: 0.15em; color: #2b2b2b; margin-top: 6px;
 }
 
-/* 明朝体パンくずリスト（左上配置） */
+/* さりげない季語検索エリア */
+.subtle-search-wrapper {
+    display: flex; align-items: center; gap: 4px; background: rgba(0, 0, 0, 0.03);
+    border: 1px solid #e0dcd3; border-radius: 15px; padding: 2px 8px;
+    transition: background 0.2s, border-color 0.2s;
+}
+.subtle-search-wrapper:focus-within { background: #ffffff; border-color: #8c8476; }
+.search-icon { font-size: 0.75rem; color: #888; }
+.subtle-search-input {
+    border: none; outline: none; background: transparent; font-size: 0.78rem;
+    font-family: inherit; color: #2b2b2b; width: 90px; transition: width 0.2s;
+}
+.subtle-search-input:focus { width: 120px; }
+.search-clear-btn { font-size: 0.75rem; color: #aaa; cursor: pointer; padding: 0 2px; }
+.search-clear-btn.hidden { display: none; }
+
+/* 明朝体パンくずリスト */
 .breadcrumb {
     font-size: 0.82rem; color: #666666; letter-spacing: 0.05em;
     display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.4rem;
@@ -106,7 +125,7 @@ body, html {
     font-size: 1.4rem; letter-spacing: 0.25em; line-height: 1.4; color: #2b2b2b; white-space: nowrap;
 }
 
-/* 年月区切り（縦書きの年・月ラベル） */
+/* 年月区切り */
 .date-divider-card {
     writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;
     font-size: 0.88rem; color: #8c8476; letter-spacing: 0.2em;
@@ -114,7 +133,7 @@ body, html {
     display: flex; align-items: center; justify-content: center; font-family: serif;
 }
 
-/* 下書きタップ時の文字リンク風モーダル */
+/* モーダル */
 .card-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px);
@@ -141,7 +160,7 @@ body, html {
     padding-bottom: 5px; flex-shrink: 0; font-weight: 500; z-index: 40;
 }
 
-/* 🖋️ 入力画面 */
+/* 入力画面 */
 .input-screen-content {
     flex: 1; width: 100%; display: flex; flex-direction: column;
     justify-content: flex-start; align-items: center; gap: 15px; padding-top: 10px;
@@ -157,7 +176,7 @@ body, html {
     padding: 8px 0; border-bottom: 1px solid #ddd;
 }
 
-/* 🏷️ ステップ2：確認画面 */
+/* 確認画面 */
 .step2-content {
     flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%;
     overflow-y: auto; padding: 10px 0;
@@ -175,7 +194,7 @@ body, html {
     border: 1px solid #ccc; border-radius: 4px; outline: none; background: #faf9f6;
 }
 
-/* 👁️ プレビュー領域 */
+/* プレビュー領域 */
 .preview-screen-content {
     position: relative; flex: 1; width: 100%;
     display: flex; justify-content: center; align-items: center; overflow: hidden;
@@ -198,7 +217,7 @@ body, html {
     font-weight: 500; white-space: nowrap; text-align: center; display: block;
 }
 
-/* 🔘 ボタンデザイン */
+/* ボタンデザイン */
 .btn-group { display: flex; gap: 12px; justify-content: center; width: 100%; max-width: 400px; z-index: 40; flex-shrink: 0; }
 .btn {
     flex: 1; padding: 12px 0; font-size: 0.95rem; font-family: inherit; letter-spacing: 0.15em;
