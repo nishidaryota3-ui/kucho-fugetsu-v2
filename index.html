@@ -20,16 +20,16 @@
 </head>
 <body>
 
-    <!-- 🚪 ① トップ画面（アイコン2つを並べる） -->
+    <!-- 🐾 ②追加：おみ句じ猫ボタン（「読む」画面で常に左下に配置） -->
+    <img id="fixedCatBtn" src="omikuji-cat.png" alt="おみ句じを引く" class="fixed-cat-trigger hidden" onclick="triggerRandomOmikuji()" title="おみ句じを引く">
+
+    <!-- 🚪 ① トップ画面 -->
     <div id="startScreen" class="step-screen active">
         <div class="top-icon-container">
-            <!-- 読む（今までの作品） -->
             <div class="top-icon-block" onclick="startYomuMode()">
                 <img src="icon_top_input.png" alt="読む" class="top-icon-img">
                 <span class="top-icon-sub">今までの作品</span>
             </div>
-            
-            <!-- 詠む（俳句の入力） -->
             <div class="top-icon-block" onclick="startEmuMode()">
                 <img src="icon_top_output.png" alt="詠む" class="top-icon-img">
                 <span class="top-icon-sub">俳句の入力</span>
@@ -37,40 +37,55 @@
         </div>
     </div>
 
-    <!-- 📖 ②「読む」画面 -->
+    <!-- 📖 「読む」画面 -->
     <div id="readScreen" class="step-screen">
-        <!-- ② パンくず ＆ タイトルヘッダー -->
+        <!-- ① パンくず（左上） ＆ 中央タイトル -->
         <div class="read-header">
             <div class="breadcrumb">
                 <span class="link" onclick="goToStartScreen()">home</span>
                 <span class="separator">&lt;</span>
                 <span class="current">俳句を読む</span>
             </div>
-            <div class="read-title">西田上酢 句帳</div>
+            <div class="read-title-center">西田上酢 句帳</div>
         </div>
         
-        <!-- ③ 完成句 / 下書き 切替タブ -->
+        <!-- 完成句 / 下書き 切替タブ -->
         <div class="read-tab-group">
             <button id="tabKansei" class="read-tab active" onclick="switchReadTab('完成句')">完成句</button>
             <button id="tabShitagaki" class="read-tab" onclick="switchReadTab('下書き')">下書き</button>
         </div>
 
-        <!-- ③＆④ 縦書き一覧スクロールコンテナ -->
+        <!-- 案3 年月区切り入りの縦書き一覧コンテナ -->
         <div id="readHaikuList" class="horizontal-scroll-container saijiki-scroll-list">
-            <!-- JSで動的に縦書きの句が配置されます -->
+            <!-- JSで動的に縦書きの句と年月区切りが配置されます -->
         </div>
     </div>
 
-    <!-- 💡 案1：句タップ時の詳細・編集モーダル（ポップアップ） -->
+    <!-- 🎲 ②追加：猫タップ時のおみ句じ（一句一画面）鑑賞スクリーン -->
+    <div id="omikujiRoomScreen" class="step-screen">
+        <div class="read-header">
+            <div class="breadcrumb">
+                <span class="link" onclick="goToStartScreen()">home</span>
+                <span class="separator">&lt;</span>
+                <span class="link" onclick="startYomuMode()">俳句を読む</span>
+                <span class="separator">&lt;</span>
+                <span class="current">おみ句じ</span>
+            </div>
+        </div>
+        <div class="haiku-screen" onclick="triggerRandomOmikuji()">
+            <p id="omikujiPhrase" class="phrase"></p>
+        </div>
+    </div>
+
+    <!-- 💡 ②下書きタップ時のシンプルな選択（フローティングボックス） -->
     <div id="haikuDetailModal" class="card-overlay hidden" onclick="closeHaikuDetailModal()">
         <div class="modal-card-content" onclick="event.stopPropagation()">
             <div id="modalPhrase" class="modal-phrase"></div>
-            <div id="modalDate" class="modal-date"></div>
-            
-            <div id="modalActionArea" class="modal-actions" style="display: none;">
-                <button class="btn" onclick="editDraftHaiku()">この下書きを推敲・編集する</button>
+            <div class="modal-text-actions">
+                <span class="text-action-btn primary" onclick="editDraftHaiku()">修正</span>
+                <span class="action-divider">|</span>
+                <span class="text-action-btn" onclick="closeHaikuDetailModal()">閉じる</span>
             </div>
-            <button class="btn btn-outline" style="margin-top: 10px;" onclick="closeHaikuDetailModal()">閉じる</button>
         </div>
     </div>
 
@@ -88,7 +103,7 @@
         </div>
     </div>
 
-    <!-- 🏷️ ステップ2：情報の確認（⑥見出し変更） -->
+    <!-- 🏷️ ステップ2：情報の確認 -->
     <div id="step2" class="step-screen">
         <div class="step-title">【二】 情報の確認</div>
         <div class="step2-content">
@@ -140,7 +155,6 @@
                     </select>
                 </div>
 
-                <!-- ⑦ デフォルト読み仮名を「にしだうえす」にセット -->
                 <div class="form-group" style="margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
                     <label class="form-label">作者名</label>
                     <input type="text" id="authorInput" class="text-input" list="authorList" value="西田上酢" oninput="onAuthorInputChanged()" onchange="onAuthorNameChange()">
@@ -184,7 +198,6 @@
             </div>
         </div>
 
-        <!-- ⑧ ボタン構成（現状の見やすい配置） -->
         <div class="btn-group" style="flex-direction: column; gap: 8px;">
             <div style="display: flex; gap: 10px; width: 100%;">
                 <button id="submitKanseiBtn" class="btn" onclick="submitHaiku('完成句')">完成句</button>
