@@ -36,11 +36,43 @@ function getTodayDateString() {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-// 西暦・月を漢数字の縦書き用テキストに変換
+// Googleの Date(2026,6,8) 形式や様々な日付表記を標準の YYYY-MM-DD に変換する関数
+function normalizeDateString(rawDate) {
+    if (!rawDate) return '';
+    let str = String(rawDate).trim();
+
+    // Date(2026,6,8) や Date(2026, 6, 8) のパターンを解析
+    if (str.includes('Date(')) {
+        const matches = str.match(/\d+/g);
+        if (matches && matches.length >= 3) {
+            const yyyy = matches[0];
+            // Google APIのDateオブジェクトは月が0始まり(0=1月)のため +1 する
+            const mm = String(parseInt(matches[1], 10) + 1).padStart(2, '0');
+            const dd = String(parseInt(matches[2], 10)).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+    }
+
+    // すでに YYYY/MM/DD や YYYY-MM-DD の場合
+    str = str.replace(/\//g, '-');
+    const parts = str.split('-');
+    if (parts.length >= 3) {
+        const yyyy = parts[0];
+        const mm = String(parseInt(parts[1], 10)).padStart(2, '0');
+        const dd = String(parseInt(parts[2], 10)).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    return str;
+}
+
+// 西暦・月を漢数字の縦書き用テキスト（二〇二六年七月）に変換
 function toKanjiYearMonth(dateStr) {
-    if (!dateStr) return '日付未設定';
-    const parts = dateStr.split('-');
-    if (parts.length < 2) return dateStr;
+    const norm = normalizeDateString(dateStr);
+    if (!norm) return '日付未設定';
+    
+    const parts = norm.split('-');
+    if (parts.length < 2) return norm;
     
     const y = parts[0];
     const m = parseInt(parts[1], 10);
@@ -79,15 +111,15 @@ function restoreCachedMasterData() {
     } catch (e) {}
 }
 
-/* メインの「俳句集成」シートからデータ全取得（キャッシュ回避タイムスタンプ付与） */
+/* メインの「俳句集成」シートからデータ全取得 */
 function fetchMainHaikuData() {
     const oldScript = document.getElementById('mainHaikuScript');
     if (oldScript) oldScript.remove();
 
     const script = document.createElement('script');
     script.id = 'mainHaikuScript';
-    // 全データ（A1:L2000など広範囲）を確実に取得するクエリ
-    script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tq=${encodeURIComponent('SELECT A,B,C,D,E,F,G,H,I,J,K,L')}&tqx=responseHandler:mainDataReceived&_=${new Date().getTime()}`;
+    // 日付セルを文字列として安全に受け取る設定
+    script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=responseHandler:mainDataReceived&_=${new Date().getTime()}`;
     document.body.appendChild(script);
 }
 
@@ -102,13 +134,18 @@ window.mainDataReceived = function(data) {
             const c = rows[i].c;
             if (!c) continue;
 
-            const getVal = (idx) => (c[idx] && c[idx].v !== null && c[idx].v !== undefined) ? String(c[idx].v).trim() : '';
+            const getVal = (idx) => {
+                if (!c[idx]) return '';
+                // f (フォーマット済み表示文字列) があればそれを優先、なければ v
+                let val = (c[idx].f !== null && c[idx].f !== undefined) ? c[idx].f : c[idx].v;
+                return (val !== null && val !== undefined) ? String(val).trim() : '';
+            };
             
             const phrase = getVal(0);
             const author = getVal(1);
             const authorKana = getVal(2);
             const status = getVal(10) || '完成句'; // K列
-            const sakkuDate = getVal(11);          // L列
+            const rawSakkuDate = getVal(11);       // L列
 
             if (phrase && phrase !== '俳句' && phrase !== '句' && phrase !== 'A') {
                 haikuHistory.push({
@@ -118,7 +155,7 @@ window.mainDataReceived = function(data) {
                     kigo: getVal(3), parentKigo: getVal(4),
                     season: getVal(6), detailSeason: getVal(7),
                     status: status, 
-                    sakkuDate: sakkuDate
+                    sakkuDate: normalizeDateString(rawSakkuDate) // 正規化した日付をセット
                 });
             }
 
@@ -130,7 +167,6 @@ window.mainDataReceived = function(data) {
         authorDatabase = Object.keys(authorMap).map(name => ({ name, kana: authorMap[name] }));
         updateAuthorDatalist();
 
-        // 読む画面が開いている場合は再描写
         if (document.getElementById('readScreen').classList.contains('active')) {
             renderYomuList();
         }
@@ -181,7 +217,7 @@ function parseSeasonCode(str) {
     if (s.includes('haru') || s === '春') return 'haru';
     if (s.includes('natsu') || s === '夏') return 'natsu';
     if (s.includes('aki') || s === '秋') return 'aki';
-    if (s.includes('fuyu') || s.includes('huyu') || s === '冬') return 'huyu';
+    if (s.includes('fuyu') || s.includes('huyu') || s === '冬') return 'fuyu';
     if (s.includes('shinnen') || s === '新年') return 'shinnen';
     if (s.includes('muki') || s === '無季') return 'muki';
     return 'haru';
@@ -232,7 +268,7 @@ function cancelEmuMode() {
 }
 
 function startYomuMode() {
-    fetchMainHaikuData(); // 画面を開く際に毎回最新の全データを取得
+    fetchMainHaikuData();
     renderYomuList();
     document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
     document.getElementById('readScreen').classList.add('active');
@@ -246,13 +282,12 @@ function switchReadTab(status) {
     renderYomuList();
 }
 
-/* 年月区切り付き縦書き一覧表示 */
+/* 縦書き一覧表示（年月区切り安全挿入） */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
     container.innerHTML = '';
 
-    // 「西田上酢」の句、または作者名判定に当てはまる作品を抽出
     const myHaikus = haikuHistory.filter(h => (h.author === '西田上酢' || h.author === '西田亮太' || !h.author) && h.status === currentReadTab);
 
     if (myHaikus.length === 0) {
@@ -260,7 +295,7 @@ function renderYomuList() {
         return;
     }
 
-    // 日付順にソート（降順）
+    // 日付順にソート（新しい日付が先頭＝右側）
     myHaikus.sort((a, b) => (b.sakkuDate || '').localeCompare(a.sakkuDate || ''));
 
     let lastYearMonth = '';
@@ -471,7 +506,7 @@ function submitHaiku(statusType) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params.toString()
     }).then(() => {
-        setTimeout(fetchMainHaikuData, 1500); // 1.5秒後にスプレッドシートから全件再取得
+        setTimeout(fetchMainHaikuData, 1500);
         goToStep(4);
     }).catch(err => {
         console.error(err);
