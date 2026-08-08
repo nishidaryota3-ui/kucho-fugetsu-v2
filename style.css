@@ -158,25 +158,26 @@ body, html {
 .card-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
 .modal-card-content {
-    position: relative; background: #faf9f6; padding: 30px 20px 20px; border-radius: 12px;
+    position: relative; background: #faf9f6; padding: 35px 20px 20px; border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 88vw; max-width: 360px;
-    max-height: 85vh; display: flex; flex-direction: column; align-items: center; gap: 15px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;
 }
 
 /* 右上閉じる✕ボタン */
 .modal-close-corner {
-    position: absolute; top: 10px; right: 14px; font-size: 1.1rem; color: #888;
+    position: absolute; top: 10px; right: 14px; font-size: 1.2rem; color: #888;
     cursor: pointer; padding: 4px 8px; font-family: sans-serif; transition: color 0.2s;
 }
 .modal-close-corner:hover { color: #000; }
 
-/* 22文字などの長句でも絶対に改行させず綺麗に収める縦書き領域 */
+/* 長句（20〜25文字）でも絶対にはみ出さず綺麗に1行で収まる縦書き設定 */
 .modal-phrase-single-line {
     writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;
-    font-size: clamp(0.85rem, 2.8vh, 1.25rem); /* 可変サイズでカット防止 */
-    letter-spacing: 0.18em; line-height: 1.2; color: #2b2b2b;
+    font-size: clamp(0.9rem, 3.2vw, 1.25rem); /* 文字数に応じてフォントサイズ自動微調整 */
+    letter-spacing: 0.18em; line-height: 1.3; color: #2b2b2b;
     white-space: nowrap !important;
-    max-height: 52vh; overflow: hidden; display: block; margin: 0 auto; padding: 10px 0;
+    display: flex; align-items: center; justify-content: center;
+    margin: 10px auto; min-height: 180px; max-height: 50vh;
 }
 
 .modal-text-actions { display: flex; align-items: center; gap: 12px; font-size: 0.88rem; font-family: serif; flex-wrap: wrap; justify-content: center; }
@@ -244,12 +245,12 @@ body, html {
 }
 .haiku-screen { height: 100%; width: 100%; display: flex; justify-content: center; align-items: center; flex-direction: column; }
 
-/* 長句でも上下カットされない可変設定 */
+/* 長句（字余り）でも上下カットされないプレビュー表示 */
 .phrase {
     writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;
-    font-size: clamp(1.2rem, 2.8vh, 2.6rem); line-height: 1.2; letter-spacing: 0.25em;
+    font-size: clamp(1.2rem, 3.5vw, 2.2rem); line-height: 1.2; letter-spacing: 0.22em;
     font-weight: 500; white-space: nowrap; text-align: center; display: block;
-    max-height: 58vh; overflow: hidden;
+    max-height: 55vh; overflow: visible;
 }
 
 /* ボタンデザイン */
