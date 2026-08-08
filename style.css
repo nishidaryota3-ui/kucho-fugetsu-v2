@@ -81,7 +81,7 @@ body, html {
 }
 .search-icon {
     font-size: 0.75rem; color: #444444; flex-shrink: 0;
-    filter: grayscale(100%); /* 完全モノクロ化 */
+    filter: grayscale(100%);
 }
 
 .subtle-search-input {
@@ -159,23 +159,23 @@ body, html {
 
 .modal-card-content {
     background: #faf9f6; padding: 25px 20px; border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 85vw; max-width: 340px;
-    display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 88vw; max-width: 360px;
+    max-height: 85vh; display: flex; flex-direction: column; align-items: center; gap: 15px; text-align: center;
 }
 
-/* 必定1行表示用の縦書き句テキスト領域 */
+/* 22文字などの長句でも絶対に改行させず綺麗に収める縦書き領域 */
 .modal-phrase-single-line {
     writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;
-    font-size: clamp(1.0rem, 4vh, 1.3rem); /* 画面サイズに合わせて自動縮小 */
+    font-size: clamp(0.9rem, 3.2vh, 1.25rem); /* 文字数・画面高に合わせて自動縮小 */
     letter-spacing: 0.18em; line-height: 1.2; color: #2b2b2b;
-    white-space: nowrap !important; /* 絶対に改行させない */
-    max-height: 50vh; overflow: hidden; display: block; margin: 0 auto;
+    white-space: nowrap !important; /* 強制1行表示 */
+    max-height: 55vh; overflow: hidden; display: block; margin: 0 auto; padding: 10px 0;
 }
 
-.modal-text-actions { display: flex; align-items: center; gap: 15px; font-size: 0.9rem; font-family: serif; flex-wrap: wrap; justify-content: center; }
-.text-action-btn { cursor: pointer; color: #666; letter-spacing: 0.1em; transition: color 0.2s; }
+.modal-text-actions { display: flex; align-items: center; gap: 12px; font-size: 0.88rem; font-family: serif; flex-wrap: wrap; justify-content: center; }
+.text-action-btn { cursor: pointer; color: #666; letter-spacing: 0.08em; transition: color 0.2s; }
 .text-action-btn.primary { color: #2b2b2b; font-weight: 600; }
-.text-action-btn.danger { color: #a94442; } /* 削除ボタン用カラー */
+.text-action-btn.danger { color: #a94442; }
 .text-action-btn:hover { color: #000; }
 .action-divider { color: #ccc; font-family: sans-serif; }
 
@@ -219,7 +219,7 @@ body, html {
     border: 1px solid #ccc; border-radius: 4px; outline: none; background: #faf9f6;
 }
 
-/* プレビュー領域 */
+/* プレビュー領域（長句でも上下カットされない可変設定） */
 .preview-screen-content {
     position: relative; flex: 1; width: 100%;
     display: flex; justify-content: center; align-items: center; overflow: hidden;
@@ -236,10 +236,13 @@ body, html {
     display: flex; flex-direction: column; align-items: flex-end;
 }
 .haiku-screen { height: 100%; width: 100%; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+
+/* 登録プレビュー・おみ句じ用縦書き文字（長句カット防止） */
 .phrase {
     writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;
-    font-size: 3.2vh; line-height: 1.0; letter-spacing: 0.3em;
+    font-size: clamp(1.4rem, 3.0vh, 2.8rem); line-height: 1.2; letter-spacing: 0.25em;
     font-weight: 500; white-space: nowrap; text-align: center; display: block;
+    max-height: 60vh; overflow: hidden;
 }
 
 /* ボタンデザイン */
