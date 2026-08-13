@@ -307,7 +307,7 @@ function renderYomuList() {
         }
         const card = document.createElement('div');
         card.className = 'saijiki-haiku-card';
-        card.onclick = () => onHaikuCardClicked(item);
+        card.onclick = () => window.onHaikuCardClicked(item); /* ← 明示的に指定 */
         card.innerHTML = `<div class="saijiki-phrase">${item.phrase}</div>`;
         container.appendChild(card);
     });
@@ -315,7 +315,8 @@ function renderYomuList() {
     requestAnimationFrame(() => { container.scrollLeft = container.scrollWidth; });
 }
 
-function onHaikuCardClicked(haikuObj) {
+/* ↓ 変更：グローバルに関数を定義することで確実に実行されるように修正 */
+window.onHaikuCardClicked = function(haikuObj) {
     activeSelectedHaiku = haikuObj;
     document.getElementById('modalPhrase').innerText = haikuObj.phrase;
     const actionsContainer = document.getElementById('modalActions');
@@ -336,7 +337,7 @@ function onHaikuCardClicked(haikuObj) {
         `;
     }
     document.getElementById('haikuDetailModal').classList.remove('hidden');
-}
+};
 
 function closeHaikuDetailModal() { document.getElementById('haikuDetailModal').classList.add('hidden'); }
 
