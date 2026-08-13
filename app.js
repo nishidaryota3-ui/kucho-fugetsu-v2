@@ -32,7 +32,7 @@ function toKanjiNum(str) {
 }
 
 function parseDateLabel(dateStr) {
-    if (!dateStr) return { groupKey: '0000-00', exactKey: '0000-00-00', label: '過去作品' };
+    if (!dateStr) return { groupKey: '0000-00-00', exactKey: '0000-00-00', label: '過去作品' };
     let str = String(dateStr).trim();
     if (str.includes('Date(')) {
         const m = str.match(/\d+/g);
@@ -42,16 +42,39 @@ function parseDateLabel(dateStr) {
     const parts = str.split('-').map(p => p.trim()).filter(Boolean);
 
     if (parts.length === 1 && /^\d{4}$/.test(parts[0])) {
-        return { groupKey: `${parts[0]}-00`, exactKey: `${parts[0]}-00-00`, label: `${toKanjiNum(parts[0])}年` };
+        return { groupKey: `${parts[0]}-00-00`, exactKey: `${parts[0]}-00-00`, label: `${toKanjiNum(parts[0])}年` };
     }
     if (parts.length >= 2 && /^\d{4}$/.test(parts[0])) {
         const y = parts[0], mNum = parseInt(parts[1], 10);
         if (!isNaN(mNum)) {
             const monthMap = {1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十', 11:'十一', 12:'十二'};
-            return { groupKey: `${y}-${String(mNum).padStart(2, '0')}`, exactKey: `${y}-${String(mNum).padStart(2, '0')}-${parts[2] ? String(parseInt(parts[2], 10)).padStart(2, '0') : '00'}`, label: `${toKanjiNum(y)}年 ${monthMap[mNum] || mNum}月` };
+            const dayMap = {
+                1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十',
+                11:'十一', 12:'十二', 13:'十三', 14:'十四', 15:'十五', 16:'十六', 17:'十七', 18:'十八', 19:'十九', 20:'二十',
+                21:'二十一', 22:'二十二', 23:'二十三', 24:'二十四', 25:'二十五', 26:'二十六', 27:'二十七', 28:'二十八', 29:'二十九', 30:'三十',
+                31:'三十一'
+            };
+            
+            let label = `${toKanjiNum(y)}年 ${monthMap[mNum] || mNum}月`;
+            let dNum = parts[2] ? parseInt(parts[2], 10) : null;
+            
+            if (dNum && !isNaN(dNum)) {
+                label += `${dayMap[dNum] || dNum}日`;
+                return { 
+                    groupKey: `${y}-${String(mNum).padStart(2, '0')}-${String(dNum).padStart(2, '0')}`, 
+                    exactKey: `${y}-${String(mNum).padStart(2, '0')}-${String(dNum).padStart(2, '0')}`, 
+                    label: label 
+                };
+            } else {
+                return { 
+                    groupKey: `${y}-${String(mNum).padStart(2, '0')}-00`, 
+                    exactKey: `${y}-${String(mNum).padStart(2, '0')}-00`, 
+                    label: label 
+                };
+            }
         }
     }
-    return { groupKey: '0000-00', exactKey: '0000-00-00', label: '過去作品' };
+    return { groupKey: '0000-00-00', exactKey: '0000-00-00', label: '過去作品' };
 }
 
 window.onload = function() {
@@ -246,7 +269,6 @@ function clearKigoFilter(event) {
     renderYomuList();
 }
 
-/* 🔄 完全に修正された並び替え処理（左が古い ➔ 右が新しい） */
 function renderYomuList() {
     const container = document.getElementById('readHaikuList');
     if (!container) return;
@@ -267,7 +289,6 @@ function renderYomuList() {
 
     targetHaikus.forEach(item => item._parsedDate = parseDateLabel(item.sakkuDate));
 
-    /* 新しい日付を配列の先頭にする（降順ソート）➔ これにより画面右端に最新句が配置されます */
     targetHaikus.sort((a, b) => {
         if (a._parsedDate.groupKey !== b._parsedDate.groupKey) {
             return b._parsedDate.groupKey.localeCompare(a._parsedDate.groupKey); 
@@ -319,7 +340,6 @@ function onHaikuCardClicked(haikuObj) {
 
 function closeHaikuDetailModal() { document.getElementById('haikuDetailModal').classList.add('hidden'); }
 
-/* 確実なステータス変更（oldPhraseを送信） */
 function changeHaikuStatus(targetStatus) {
     if (!activeSelectedHaiku) return;
     closeHaikuDetailModal();
@@ -333,7 +353,6 @@ function changeHaikuStatus(targetStatus) {
     .then(() => setTimeout(fetchMainHaikuData, 1000)).catch(() => setTimeout(fetchMainHaikuData, 1000));
 }
 
-/* 確実な削除（oldPhraseを送信） */
 function deleteSelectedDraft() {
     if (!activeSelectedHaiku) return;
     if (!confirm('本当に削除しますか？\n（句帳から完全に消去されます）')) return;
@@ -396,7 +415,7 @@ function editSelectedHaiku() {
     if (!activeSelectedHaiku) return;
 
     editingHaikuObj = activeSelectedHaiku;
-    currentHaikuData.oldPhrase = activeSelectedHaiku.phrase; // ここで元テキストを保存！
+    currentHaikuData.oldPhrase = activeSelectedHaiku.phrase; 
     
     document.getElementById('inputPhrase').value = activeSelectedHaiku.phrase;
     document.getElementById('kigoInput').value = activeSelectedHaiku.parentKigo || activeSelectedHaiku.kigo || '';
@@ -489,7 +508,7 @@ function submitHaiku(statusType) {
     const formData = new URLSearchParams();
     formData.append('action', 'save');
     formData.append('phrase', currentHaikuData.phrase);
-    formData.append('oldPhrase', currentHaikuData.oldPhrase || ''); // ここで元テキストを送信！
+    formData.append('oldPhrase', currentHaikuData.oldPhrase || ''); 
     formData.append('author', currentHaikuData.author);
     formData.append('authorKana', currentHaikuData.authorKana);
     formData.append('kigo', currentHaikuData.kigo || currentHaikuData.parentKigo);
