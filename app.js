@@ -88,7 +88,9 @@ window.onload = function() {
     initSwipeEvents();
     initKeyboardEvents();
     
+    // アプリ起動時にカレンダー部分を生成・取得
     renderTodayCalendar();
+    fetchKoyomiData();
 
     window.addEventListener('online', processOfflineQueue);
     processOfflineQueue();
@@ -613,7 +615,7 @@ function resetForm() {
     goToStep(1);
 }
 
-// ▼▼ トップ画面カレンダー表示関数 ▼▼
+// ▼▼ トップ画面カレンダー：JSで即座に作れる部分（陽暦）をセット ▼▼
 function renderTodayCalendar() {
     const today = new Date();
     const year = today.getFullYear();
@@ -623,19 +625,68 @@ function renderTodayCalendar() {
     // 年号の計算
     const eraYear = year - 2018; 
     const eraStr = eraYear === 1 ? "元" : toKanjiNum(eraYear.toString());
-    
     document.getElementById('calEraYear').innerText = `令和${eraStr}年`;
     
-    // 日付を少し大きめに表示
+    // 日付をセット
     document.getElementById('calGregorianDate').innerText = `${toKanjiNum(month.toString())}月${toKanjiNum(date.toString())}日`;
 
     // 陽暦の和風月名
     const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
     document.getElementById('calWafu').innerText = `（${wafuList[month - 1]}）`;
     
-    // 以下、レイアウト確認のためのダミーデータ
-    document.getElementById('calLunar').innerText = "旧暦七月二日（文月）"; 
-    document.getElementById('calSolarTerm').innerText = "立秋";
-    document.getElementById('calMicroseason').innerText = "寒蝉鳴";
-    document.getElementById('calHaikuEvent').innerText = "落花忌"; 
+    // （ダミーデータは消去しました。代わりに下の fetchKoyomiData でスプレッドシートから読み込みます）
 }
+
+// ▼▼ トップ画面カレンダー：スプレッドシートから「暦データベース」を読み込む ▼▼
+function fetchKoyomiData() {
+    const script = document.createElement('script');
+    // ※「暦データベース」をメインのシート内に作成したと仮定して、SPREADSHEET_ID を使用しています
+    script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
+    document.body.appendChild(script);
+}
+
+window.koyomiDataReceived = function(data) {
+    try {
+        if (!data || !data.table || !data.table.rows) return;
+        
+        const todayStr = getTodayDateString(); // "2026-08-14" などの形式
+        const rows = data.table.rows;
+        
+        let todayRow = null;
+        
+        for (let i = 0; i < rows.length; i++) {
+            const c = rows[i].c;
+            if (!c || !c[0]) continue;
+            let dateVal = c[0].f || c[0].v; 
+            
+            // スプレッドシートから来た日付データ(Date型文字列表現)を処理
+            if (dateVal && dateVal.includes('Date(')) {
+                const mMatch = dateVal.match(/\d+/g);
+                if (mMatch && mMatch.length >= 3) {
+                    let y = mMatch[0];
+                    let m = String(parseInt(mMatch[1]) + 1).padStart(2, '0');
+                    let d = String(mMatch[2]).padStart(2, '0');
+                    dateVal = `${y}-${m}-${d}`;
+                }
+            } else {
+                dateVal = String(dateVal).split('T')[0];
+            }
+            
+            if (dateVal === todayStr) {
+                todayRow = c;
+                break;
+            }
+        }
+
+        if (todayRow) {
+            const getVal = (idx) => (todayRow[idx] && todayRow[idx].v !== null) ? String(todayRow[idx].v).trim() : '';
+            
+            document.getElementById('calLunar').innerText = getVal(1);       // 旧暦
+            document.getElementById('calSolarTerm').innerText = getVal(2);   // 二十四節気
+            document.getElementById('calMicroseason').innerText = getVal(3); // 七十二候
+            document.getElementById('calZassetsu').innerText = getVal(4);    // 雑節
+            document.getElementById('calHoliday').innerText = getVal(5);     // 祝日
+            document.getElementById('calHaikuEvent').innerText = getVal(6);  // 俳句イベント
+        }
+    } catch (e) { console.error(e); }
+};
