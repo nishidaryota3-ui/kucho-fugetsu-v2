@@ -73,7 +73,7 @@ body, html {
     font-size: min(2.5vh, 22px); 
     letter-spacing: 0.25em; line-height: 1.4; color: #2b2b2b; white-space: nowrap; 
     overflow: visible; 
-    pointer-events: none; /* ← 追加：タップ判定の改善 */
+    pointer-events: none; 
 }
 .date-divider-card { writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl; font-size: 0.88rem; color: #8c8476; letter-spacing: 0.2em; padding: 0 15px; border-left: 1px solid #dcd9d0; height: 40%; display: flex; align-items: center; justify-content: center; font-family: serif; }
 
@@ -81,7 +81,7 @@ body, html {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
     background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px); 
     display: flex; justify-content: center; align-items: center; 
-    z-index: 9999; /* ← 変更：前面に強制 */
+    z-index: 9999; 
     transition: opacity 0.3s ease, visibility 0.3s ease; 
 }
 .card-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
@@ -137,3 +137,6 @@ body, html {
 .btn { flex: 1; padding: 12px 0; font-size: 0.95rem; font-family: inherit; letter-spacing: 0.15em; color: #faf9f6; background-color: #2b2b2b; border: none; border-radius: 25px; cursor: pointer; transition: opacity 0.2s, transform 0.1s; user-select: none; white-space: nowrap; text-align: center; }
 .btn:active { transform: scale(0.98); }
 .btn-outline { background-color: transparent; color: #555; border: 1px solid #b5b5b5; }
+
+/* ボタン無効化時のスタイル（連打防止用） */
+.btn:disabled { opacity: 0.5; pointer-events: none; cursor: default; }
