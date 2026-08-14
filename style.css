@@ -139,30 +139,50 @@ body, html {
 .btn-outline { background-color: transparent; color: #555; border: 1px solid #b5b5b5; }
 .btn:disabled { opacity: 0.5; pointer-events: none; cursor: default; }
 
-/* ▼▼ 修正：トップ画面カレンダーウィジェット ▼▼ */
+/* ▼▼ デザイン修正：トップ画面カレンダーウィジェット ▼▼ */
 .calendar-widget {
     position: absolute;
-    bottom: calc(25px + env(safe-area-inset-bottom)); /* 下に寄せる */
-    right: calc(20px + env(safe-area-inset-right));   /* 右に寄せる */
+    bottom: calc(30px + env(safe-area-inset-bottom)); /* 右下に配置 */
+    right: calc(15px + env(safe-area-inset-right));
     writing-mode: vertical-rl;
     -webkit-writing-mode: vertical-rl;
-    text-align: start; /* 段落の上端をきれいに揃える */
+    text-align: start; /* 段落の上端揃えを保証 */
     z-index: 10;
     pointer-events: none; 
 }
 
+/* 共通の行スタイル */
 .cal-line {
-    margin-left: 12px; /* 段落（行）と段落の間隔 */
-    font-size: 13px; /* 基本の文字サイズを小さく */
     color: #666;
     letter-spacing: 0.15em;
     font-family: serif;
-    white-space: nowrap; /* 不用意な改行を防ぐ */
+    white-space: nowrap; 
 }
 
+/* 令和八年 */
+.cal-year {
+    margin-left: 2px; /* 日付への隙間を極限まで詰めて「肩」を表現 */
+    font-size: 11px;  /* 小さめ */
+}
+
+/* 八月十四日（葉月） */
+.cal-date {
+    margin-left: 10px; /* 他の情報（旧暦など）との境目を少し空ける */
+    font-size: 13px;   /* 葉月部分のサイズ */
+}
+
+/* 陽暦日付専用（+2pt相当） */
 .cal-large {
-    font-size: 15px; /* 陽暦の日付部分のみ +2px 大きく */
-    color: #333; /* 色も少し濃くして引き立たせる */
+    font-size: 16px; 
+    color: #333; /* 少し濃く */
+}
+
+/* それ以下のサブ情報（旧暦、立秋など） */
+.sub-info {
+    margin-left: 7px; /* 情報をギュッと固める */
+    /* ↓【重要】ここを下げることで、相対的に年と日付が2文字分上に飛び出す！ */
+    margin-top: 32px; 
+    font-size: 13px;  /* ベースのサイズ */
 }
 
 .cal-line:empty {
