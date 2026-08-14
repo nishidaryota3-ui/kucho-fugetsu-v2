@@ -188,4 +188,8 @@ body, html {
 .cal-line:empty {
     display: none;
 }
-/* ▲▲ 修正ここまで ▲▲ */
+
+/* ▼▼ 祝日用の優しい朱色 ▼▼ */
+.holiday-text {
+    color: #d25b4e !important; 
+}
