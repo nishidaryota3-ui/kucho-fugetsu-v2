@@ -140,3 +140,42 @@ body, html {
 
 /* ボタン無効化時のスタイル（連打防止用） */
 .btn:disabled { opacity: 0.5; pointer-events: none; cursor: default; }
+
+/* ▼▼ 追加：トップ画面カレンダーウィジェット ▼▼ */
+.calendar-widget {
+    position: absolute;
+    bottom: calc(25px + env(safe-area-inset-bottom));
+    right: calc(20px + env(safe-area-inset-right));
+    writing-mode: vertical-rl;
+    -webkit-writing-mode: vertical-rl;
+    display: flex;
+    flex-direction: row; /* 右から左へ行を並べる */
+    align-items: flex-start;
+    gap: 12px; /* 行と行の隙間 */
+    z-index: 10;
+    pointer-events: none; /* タップの邪魔にならないようにする */
+    color: #2b2b2b;
+}
+
+.cal-line-main {
+    font-size: min(4.5vh, 22px);
+    letter-spacing: 0.15em;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.cal-line-sub {
+    display: flex;
+    flex-direction: column; /* 縦1行の中に要素を並べる */
+    gap: 15px; /* 要素同士の縦の隙間 */
+    font-size: min(2.5vh, 12px);
+    color: #666;
+    letter-spacing: 0.15em;
+    font-family: serif;
+}
+
+/* 中身が空（データがない日）の場合は非表示にして詰める */
+.cal-line-sub span:empty {
+    display: none;
+}
+/* ▲▲ 追加ここまで ▲▲ */
