@@ -87,6 +87,9 @@ window.onload = function() {
     fetchSaijikiMasterData();
     initSwipeEvents();
     initKeyboardEvents();
+    
+    renderTodayCalendar(); // 追加：カレンダー表示関数呼び出し
+
     window.addEventListener('online', processOfflineQueue);
     processOfflineQueue();
 };
@@ -96,7 +99,6 @@ function restoreCachedMasterData() {
         const cachedSaijiki = localStorage.getItem('hugetsu_saijiki_db');
         if (cachedSaijiki) saijikiDatabase = JSON.parse(cachedSaijiki);
 
-        // オフライン時でも俳句一覧が見られるように本体から読み込む
         const cachedHaiku = localStorage.getItem('hugetsu_haiku_db');
         if (cachedHaiku) {
             haikuHistory = JSON.parse(cachedHaiku);
@@ -162,7 +164,6 @@ window.mainDataReceived = function(data) {
         authorDatabase = Object.keys(authorMap).map(name => ({ name, kana: authorMap[name] }));
         updateAuthorDatalist();
 
-        // 読み込んだ最新の俳句一覧をスマホ本体にも保存しておく
         localStorage.setItem('hugetsu_haiku_db', JSON.stringify(haikuHistory));
 
         if (document.getElementById('readScreen').classList.contains('active')) renderYomuList();
@@ -519,7 +520,6 @@ function goToStep3() {
     let detailSuffix = currentHaikuData.detailSeason ? `（${currentHaikuData.detailSeason}）` : '';
     document.getElementById('previewBreadcrumb').innerHTML = `<span>季寄せ</span> <span class="separator">&lt;</span> <span>${seasonJa}</span> <span class="separator">&lt;</span> <span>${currentHaikuData.parentKigo || '無季'}${detailSuffix}</span>`;
     
-    // ステップ3を開くときはボタンを必ず有効状態（押せる状態）に戻す
     const kanseiBtn = document.getElementById('submitKanseiBtn');
     const shitagakiBtn = document.getElementById('submitShitagakiBtn');
     if (kanseiBtn) kanseiBtn.disabled = false;
@@ -532,7 +532,6 @@ function submitHaiku(statusType) {
     const kanseiBtn = document.getElementById('submitKanseiBtn');
     const shitagakiBtn = document.getElementById('submitShitagakiBtn');
 
-    // 1. 連打防止（ボタンを無効化）
     if (kanseiBtn) kanseiBtn.disabled = true;
     if (shitagakiBtn) shitagakiBtn.disabled = true;
 
@@ -552,20 +551,17 @@ function submitHaiku(statusType) {
     formData.append('status', statusType);
     formData.append('sakkuDate', currentHaikuData.sakkuDate);
 
-    // 2. タイムアウト処理
     let isResolved = false;
     const finalize = (isOfflineFallback) => {
         if (isResolved) return;
         isResolved = true;
         if (isOfflineFallback) {
-            // 通信失敗またはタイムアウト時はオフラインキューへ
             saveToOfflineQueue({ ...currentHaikuData, status: statusType });
         }
         setTimeout(fetchMainHaikuData, 1000); 
         goToStep(4);
     };
 
-    // 電波が悪い時のために、8秒経っても応答がなければオフライン保存として次へ進める
     const timeoutId = setTimeout(() => finalize(true), 8000);
 
     fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData.toString() })
@@ -615,4 +611,35 @@ function resetForm() {
     document.getElementById('kigoInput').value = '';
     currentHaikuData.oldPhrase = '';
     goToStep(1);
+}
+
+// ▼▼ 追加：アプリ起動時のカレンダー表示関数 ▼▼
+function renderTodayCalendar() {
+    const today = new Date();
+    
+    // 陽暦（現在の日付）を漢数字に変換
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    const date = today.getDate();
+    
+    const eraYear = year - 2018; // 2019=令和1年
+    const eraStr = eraYear === 1 ? "元" : toKanjiNum(eraYear.toString());
+    const gregorianStr = `令和${eraStr}年 ${toKanjiNum(month.toString())}月${toKanjiNum(date.toString())}日`;
+    
+    document.getElementById('calGregorian').innerText = gregorianStr;
+
+    // TODO: ここから下は将来スプレッドシートから取得したデータに置き換えます。
+    // まずはレイアウト確認のために、本日（8/14頃）のダミーデータを入れます。
+    const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
+    document.getElementById('calWafu').innerText = wafuList[month - 1]; // 陽暦ベースの和風月名
+    
+    // ダミーデータ（本来はシートから読み込む）
+    document.getElementById('calLunar').innerText = "旧暦 七月二日"; 
+    document.getElementById('calSolarTerm').innerText = "立秋";
+    document.getElementById('calMicroseason').innerText = "寒蝉鳴";
+    
+    // 該当しない日（空文字）のものは画面上で自動的に詰められます
+    document.getElementById('calZassetsu').innerText = ""; 
+    document.getElementById('calHoliday').innerText = "";
+    document.getElementById('calHaikuEvent').innerText = "落花忌"; 
 }
