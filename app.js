@@ -88,7 +88,7 @@ window.onload = function() {
     initSwipeEvents();
     initKeyboardEvents();
     
-    renderTodayCalendar(); // 追加：カレンダー表示関数呼び出し
+    renderTodayCalendar();
 
     window.addEventListener('online', processOfflineQueue);
     processOfflineQueue();
@@ -613,33 +613,29 @@ function resetForm() {
     goToStep(1);
 }
 
-// ▼▼ 追加：アプリ起動時のカレンダー表示関数 ▼▼
+// ▼▼ トップ画面カレンダー表示関数 ▼▼
 function renderTodayCalendar() {
     const today = new Date();
-    
-    // 陽暦（現在の日付）を漢数字に変換
     const year = today.getFullYear();
     const month = today.getMonth() + 1;
     const date = today.getDate();
     
-    const eraYear = year - 2018; // 2019=令和1年
+    // 年号の計算
+    const eraYear = year - 2018; 
     const eraStr = eraYear === 1 ? "元" : toKanjiNum(eraYear.toString());
-    const gregorianStr = `令和${eraStr}年 ${toKanjiNum(month.toString())}月${toKanjiNum(date.toString())}日`;
     
-    document.getElementById('calGregorian').innerText = gregorianStr;
+    document.getElementById('calEraYear').innerText = `令和${eraStr}年`;
+    
+    // 日付を大きめに表示
+    document.getElementById('calGregorianDate').innerText = `${toKanjiNum(month.toString())}月${toKanjiNum(date.toString())}日`;
 
-    // TODO: ここから下は将来スプレッドシートから取得したデータに置き換えます。
-    // まずはレイアウト確認のために、本日（8/14頃）のダミーデータを入れます。
+    // 陽暦の和風月名
     const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
-    document.getElementById('calWafu').innerText = wafuList[month - 1]; // 陽暦ベースの和風月名
+    document.getElementById('calWafu').innerText = `（${wafuList[month - 1]}）`;
     
-    // ダミーデータ（本来はシートから読み込む）
-    document.getElementById('calLunar').innerText = "旧暦 七月二日"; 
+    // 以下、レイアウト確認のためのダミーデータ（スプレッドシート完成後に差し替えます）
+    document.getElementById('calLunar').innerText = "旧暦七月二日（文月）"; 
     document.getElementById('calSolarTerm').innerText = "立秋";
     document.getElementById('calMicroseason').innerText = "寒蝉鳴";
-    
-    // 該当しない日（空文字）のものは画面上で自動的に詰められます
-    document.getElementById('calZassetsu').innerText = ""; 
-    document.getElementById('calHoliday').innerText = "";
     document.getElementById('calHaikuEvent').innerText = "落花忌"; 
 }
