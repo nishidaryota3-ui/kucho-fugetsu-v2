@@ -95,6 +95,20 @@ function restoreCachedMasterData() {
     try {
         const cachedSaijiki = localStorage.getItem('hugetsu_saijiki_db');
         if (cachedSaijiki) saijikiDatabase = JSON.parse(cachedSaijiki);
+
+        // オフライン時でも俳句一覧が見られるように本体から読み込む
+        const cachedHaiku = localStorage.getItem('hugetsu_haiku_db');
+        if (cachedHaiku) {
+            haikuHistory = JSON.parse(cachedHaiku);
+            let authorMap = {};
+            haikuHistory.forEach(item => {
+                if (item.author && item.author !== '作者名') {
+                    authorMap[item.author] = item.authorKana || item.author;
+                }
+            });
+            authorDatabase = Object.keys(authorMap).map(name => ({ name, kana: authorMap[name] }));
+            updateAuthorDatalist();
+        }
     } catch (e) {}
 }
 
@@ -147,6 +161,9 @@ window.mainDataReceived = function(data) {
 
         authorDatabase = Object.keys(authorMap).map(name => ({ name, kana: authorMap[name] }));
         updateAuthorDatalist();
+
+        // 読み込んだ最新の俳句一覧をスマホ本体にも保存しておく
+        localStorage.setItem('hugetsu_haiku_db', JSON.stringify(haikuHistory));
 
         if (document.getElementById('readScreen').classList.contains('active')) renderYomuList();
     } catch (e) { console.error(e); }
@@ -307,7 +324,7 @@ function renderYomuList() {
         }
         const card = document.createElement('div');
         card.className = 'saijiki-haiku-card';
-        card.onclick = () => window.onHaikuCardClicked(item); /* ← 明示的に指定 */
+        card.onclick = () => window.onHaikuCardClicked(item); 
         card.innerHTML = `<div class="saijiki-phrase">${item.phrase}</div>`;
         container.appendChild(card);
     });
@@ -315,7 +332,6 @@ function renderYomuList() {
     requestAnimationFrame(() => { container.scrollLeft = container.scrollWidth; });
 }
 
-/* ↓ 変更：グローバルに関数を定義することで確実に実行されるように修正 */
 window.onHaikuCardClicked = function(haikuObj) {
     activeSelectedHaiku = haikuObj;
     document.getElementById('modalPhrase').innerText = haikuObj.phrase;
@@ -502,10 +518,26 @@ function goToStep3() {
     let seasonJa = {'haru':'春', 'natsu':'夏', 'aki':'秋', 'huyu':'冬', 'shinnen':'新年', 'muki':'無季'}[currentHaikuData.season] || currentHaikuData.season;
     let detailSuffix = currentHaikuData.detailSeason ? `（${currentHaikuData.detailSeason}）` : '';
     document.getElementById('previewBreadcrumb').innerHTML = `<span>季寄せ</span> <span class="separator">&lt;</span> <span>${seasonJa}</span> <span class="separator">&lt;</span> <span>${currentHaikuData.parentKigo || '無季'}${detailSuffix}</span>`;
+    
+    // ステップ3を開くときはボタンを必ず有効状態（押せる状態）に戻す
+    const kanseiBtn = document.getElementById('submitKanseiBtn');
+    const shitagakiBtn = document.getElementById('submitShitagakiBtn');
+    if (kanseiBtn) kanseiBtn.disabled = false;
+    if (shitagakiBtn) shitagakiBtn.disabled = false;
+    
     goToStep(3);
 }
 
 function submitHaiku(statusType) {
+    const kanseiBtn = document.getElementById('submitKanseiBtn');
+    const shitagakiBtn = document.getElementById('submitShitagakiBtn');
+
+    // 1. 連打防止（ボタンを無効化）
+    if (kanseiBtn) kanseiBtn.disabled = true;
+    if (shitagakiBtn) shitagakiBtn.disabled = true;
+
+    document.getElementById('completeTitle').innerText = `${statusType}として保存しました`;
+
     const formData = new URLSearchParams();
     formData.append('action', 'save');
     formData.append('phrase', currentHaikuData.phrase);
@@ -520,11 +552,31 @@ function submitHaiku(statusType) {
     formData.append('status', statusType);
     formData.append('sakkuDate', currentHaikuData.sakkuDate);
 
-    document.getElementById('completeTitle').innerText = `${statusType}として保存しました`;
+    // 2. タイムアウト処理
+    let isResolved = false;
+    const finalize = (isOfflineFallback) => {
+        if (isResolved) return;
+        isResolved = true;
+        if (isOfflineFallback) {
+            // 通信失敗またはタイムアウト時はオフラインキューへ
+            saveToOfflineQueue({ ...currentHaikuData, status: statusType });
+        }
+        setTimeout(fetchMainHaikuData, 1000); 
+        goToStep(4);
+    };
+
+    // 電波が悪い時のために、8秒経っても応答がなければオフライン保存として次へ進める
+    const timeoutId = setTimeout(() => finalize(true), 8000);
 
     fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData.toString() })
-    .then(() => { setTimeout(fetchMainHaikuData, 1000); goToStep(4); })
-    .catch(() => { saveToOfflineQueue({ ...currentHaikuData, status: statusType }); goToStep(4); });
+    .then(() => {
+        clearTimeout(timeoutId);
+        finalize(false);
+    })
+    .catch(() => {
+        clearTimeout(timeoutId);
+        finalize(true);
+    });
 }
 
 function finishAndReturn() {
