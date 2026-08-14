@@ -633,15 +633,13 @@ function renderTodayCalendar() {
     // 陽暦の和風月名
     const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
     document.getElementById('calWafu').innerText = `（${wafuList[month - 1]}）`;
-    
-    // （ダミーデータは消去しました。代わりに下の fetchKoyomiData でスプレッドシートから読み込みます）
 }
 
 // ▼▼ トップ画面カレンダー：スプレッドシートから「暦データベース」を読み込む ▼▼
 function fetchKoyomiData() {
     const script = document.createElement('script');
-    // ※「暦データベース」をメインのシート内に作成したと仮定して、SPREADSHEET_ID を使用しています
-    script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
+    // ↓ ここを SAIJIKI_SPREADSHEET_ID に変更して、歳時記データベースを読みに行くように修正
+    script.src = `https://docs.google.com/spreadsheets/d/${SAIJIKI_SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
     document.body.appendChild(script);
 }
 
