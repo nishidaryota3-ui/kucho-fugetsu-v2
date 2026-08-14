@@ -638,7 +638,6 @@ function renderTodayCalendar() {
 // ▼▼ トップ画面カレンダー：スプレッドシートから「暦データベース」を読み込む ▼▼
 function fetchKoyomiData() {
     const script = document.createElement('script');
-    // ↓ ここを SAIJIKI_SPREADSHEET_ID に変更して、歳時記データベースを読みに行くように修正
     script.src = `https://docs.google.com/spreadsheets/d/${SAIJIKI_SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
     document.body.appendChild(script);
 }
@@ -647,7 +646,7 @@ window.koyomiDataReceived = function(data) {
     try {
         if (!data || !data.table || !data.table.rows) return;
         
-        const todayStr = getTodayDateString(); // "2026-08-14" などの形式
+        const todayStr = getTodayDateString(); 
         const rows = data.table.rows;
         
         let todayRow = null;
@@ -657,7 +656,6 @@ window.koyomiDataReceived = function(data) {
             if (!c || !c[0]) continue;
             let dateVal = c[0].f || c[0].v; 
             
-            // スプレッドシートから来た日付データ(Date型文字列表現)を処理
             if (dateVal && dateVal.includes('Date(')) {
                 const mMatch = dateVal.match(/\d+/g);
                 if (mMatch && mMatch.length >= 3) {
@@ -682,9 +680,31 @@ window.koyomiDataReceived = function(data) {
             document.getElementById('calLunar').innerText = getVal(1);       // 旧暦
             document.getElementById('calSolarTerm').innerText = getVal(2);   // 二十四節気
             document.getElementById('calMicroseason').innerText = getVal(3); // 七十二候
-            document.getElementById('calZassetsu').innerText = getVal(4);    // 雑節
-            document.getElementById('calHoliday').innerText = getVal(5);     // 祝日
-            document.getElementById('calHaikuEvent').innerText = getVal(6);  // 俳句イベント
+            
+            // ▼ イベント類を「・」で分割して別々の行（左への横並び）にする処理 ▼
+            const dynamicContainer = document.getElementById('calDynamicEvents');
+            if (dynamicContainer) {
+                dynamicContainer.innerHTML = ''; // 一旦クリア
+                
+                const addEvents = (textStr, isHoliday) => {
+                    if (!textStr) return;
+                    // 「・」で分割してそれぞれ新しい行として追加
+                    textStr.split('・').forEach(item => {
+                        const text = item.trim();
+                        if (!text) return;
+                        const p = document.createElement('p');
+                        p.className = 'cal-line sub-info';
+                        if (isHoliday) p.classList.add('holiday-text'); // 祝日なら朱色クラスをつける
+                        p.innerText = text;
+                        dynamicContainer.appendChild(p);
+                    });
+                };
+
+                // 祝日 → 雑節 → 俳句イベント の順に左へ並べる
+                addEvents(getVal(5), true);  // 祝日（優しい朱色）
+                addEvents(getVal(4), false); // 雑節
+                addEvents(getVal(6), false); // 俳句イベント
+            }
         }
     } catch (e) { console.error(e); }
 };
