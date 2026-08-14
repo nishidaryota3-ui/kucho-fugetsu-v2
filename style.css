@@ -137,45 +137,44 @@ body, html {
 .btn { flex: 1; padding: 12px 0; font-size: 0.95rem; font-family: inherit; letter-spacing: 0.15em; color: #faf9f6; background-color: #2b2b2b; border: none; border-radius: 25px; cursor: pointer; transition: opacity 0.2s, transform 0.1s; user-select: none; white-space: nowrap; text-align: center; }
 .btn:active { transform: scale(0.98); }
 .btn-outline { background-color: transparent; color: #555; border: 1px solid #b5b5b5; }
-
-/* ボタン無効化時のスタイル（連打防止用） */
 .btn:disabled { opacity: 0.5; pointer-events: none; cursor: default; }
 
-/* ▼▼ 追加：トップ画面カレンダーウィジェット ▼▼ */
+/* ▼▼ 追加・修正：トップ画面カレンダーウィジェット ▼▼ */
 .calendar-widget {
     position: absolute;
-    bottom: calc(25px + env(safe-area-inset-bottom));
-    right: calc(20px + env(safe-area-inset-right));
+    bottom: calc(15px + env(safe-area-inset-bottom)); /* 下に寄せる */
+    right: calc(15px + env(safe-area-inset-right));   /* 右に寄せる */
     writing-mode: vertical-rl;
     -webkit-writing-mode: vertical-rl;
     display: flex;
-    flex-direction: row; /* 右から左へ行を並べる */
+    flex-direction: row; 
     align-items: flex-start;
-    gap: 12px; /* 行と行の隙間 */
+    gap: 12px; /* 行間の調整 */
     z-index: 10;
-    pointer-events: none; /* タップの邪魔にならないようにする */
-    color: #2b2b2b;
+    pointer-events: none; 
 }
 
-.cal-line-main {
-    font-size: min(4.5vh, 22px);
-    letter-spacing: 0.15em;
-    font-weight: 500;
-    line-height: 1.2;
-}
-
-.cal-line-sub {
+.cal-line {
     display: flex;
-    flex-direction: column; /* 縦1行の中に要素を並べる */
-    gap: 15px; /* 要素同士の縦の隙間 */
-    font-size: min(2.5vh, 12px);
-    color: #666;
+    flex-direction: column; 
+    gap: 8px; /* 同じ行の中の要素の隙間 */
+}
+
+.cal-base {
+    font-size: 13px; /* 全体のベースサイズを小さく */
     letter-spacing: 0.15em;
     font-family: serif;
+    color: #666;
 }
 
-/* 中身が空（データがない日）の場合は非表示にして詰める */
-.cal-line-sub span:empty {
+.cal-large {
+    font-size: 15px; /* 陽暦の日付部分のみ +2px 程度大きく */
+    letter-spacing: 0.15em;
+    font-family: serif;
+    color: #444; 
+}
+
+.cal-line span:empty {
     display: none;
 }
 /* ▲▲ 追加ここまで ▲▲ */
