@@ -139,42 +139,33 @@ body, html {
 .btn-outline { background-color: transparent; color: #555; border: 1px solid #b5b5b5; }
 .btn:disabled { opacity: 0.5; pointer-events: none; cursor: default; }
 
-/* ▼▼ 追加・修正：トップ画面カレンダーウィジェット ▼▼ */
+/* ▼▼ 修正：トップ画面カレンダーウィジェット ▼▼ */
 .calendar-widget {
     position: absolute;
-    bottom: calc(15px + env(safe-area-inset-bottom)); /* 下に寄せる */
-    right: calc(15px + env(safe-area-inset-right));   /* 右に寄せる */
+    bottom: calc(25px + env(safe-area-inset-bottom)); /* 下に寄せる */
+    right: calc(20px + env(safe-area-inset-right));   /* 右に寄せる */
     writing-mode: vertical-rl;
     -webkit-writing-mode: vertical-rl;
-    display: flex;
-    flex-direction: row; 
-    align-items: flex-start;
-    gap: 12px; /* 行間の調整 */
+    text-align: start; /* 段落の上端をきれいに揃える */
     z-index: 10;
     pointer-events: none; 
 }
 
 .cal-line {
-    display: flex;
-    flex-direction: column; 
-    gap: 8px; /* 同じ行の中の要素の隙間 */
-}
-
-.cal-base {
-    font-size: 13px; /* 全体のベースサイズを小さく */
+    margin-left: 12px; /* 段落（行）と段落の間隔 */
+    font-size: 13px; /* 基本の文字サイズを小さく */
+    color: #666;
     letter-spacing: 0.15em;
     font-family: serif;
-    color: #666;
+    white-space: nowrap; /* 不用意な改行を防ぐ */
 }
 
 .cal-large {
-    font-size: 15px; /* 陽暦の日付部分のみ +2px 程度大きく */
-    letter-spacing: 0.15em;
-    font-family: serif;
-    color: #444; 
+    font-size: 15px; /* 陽暦の日付部分のみ +2px 大きく */
+    color: #333; /* 色も少し濃くして引き立たせる */
 }
 
-.cal-line span:empty {
+.cal-line:empty {
     display: none;
 }
-/* ▲▲ 追加ここまで ▲▲ */
+/* ▲▲ 修正ここまで ▲▲ */
