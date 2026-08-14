@@ -626,14 +626,14 @@ function renderTodayCalendar() {
     
     document.getElementById('calEraYear').innerText = `令和${eraStr}年`;
     
-    // 日付を大きめに表示
+    // 日付を少し大きめに表示
     document.getElementById('calGregorianDate').innerText = `${toKanjiNum(month.toString())}月${toKanjiNum(date.toString())}日`;
 
     // 陽暦の和風月名
     const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
     document.getElementById('calWafu').innerText = `（${wafuList[month - 1]}）`;
     
-    // 以下、レイアウト確認のためのダミーデータ（スプレッドシート完成後に差し替えます）
+    // 以下、レイアウト確認のためのダミーデータ
     document.getElementById('calLunar').innerText = "旧暦七月二日（文月）"; 
     document.getElementById('calSolarTerm').innerText = "立秋";
     document.getElementById('calMicroseason').innerText = "寒蝉鳴";
