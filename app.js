@@ -1,6 +1,5 @@
 const SPREADSHEET_ID = '1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg';
 const SAIJIKI_SPREADSHEET_ID = '1EOmZn53hFA8GpVdcn--aU-lj9uHjGQpnSZ1o9jbnsYs';
-// ▼ 新しい暦データベースのID ▼
 const KOYOMI_SPREADSHEET_ID = '1xYYzjR_k9gnkHtZXEmI8fBLUoDyUQnEWUrHo1DUIBD0'; 
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwgm4eh8qZGRxvFS8_b8iEJAC9vRGw31gOvjgsPQMPc1ymU4oKonErvUkL0Ucf6xnZO/exec';
 
@@ -689,35 +688,47 @@ window.koyomiDataReceived = function(data) {
                 const rowC = rows[i].c;
                 if (!rowC) continue;
                 
-                // まだ節気が見つかっておらず、かつその行に節気がある場合
                 if (!currentSekki && getVal(rowC, 2)) {
                     currentSekki = getVal(rowC, 2);
                 }
                 
-                // まだ七十二候が見つかっておらず、かつその行に七十二候がある場合
                 if (!currentMicroseason && getVal(rowC, 3)) {
                     currentMicroseason = getVal(rowC, 3);
-                    currentYomi = getVal(rowC, 7); // H列の読み仮名を取得
+                    currentYomi = getVal(rowC, 7); 
                 }
                 
-                // 両方見つかったら探索を終了
                 if (currentSekki && currentMicroseason) break;
             }
 
             document.getElementById('calSolarTerm').innerText = currentSekki;
             
-            // 七十二候と読みを合体して表示
+            const msElement = document.getElementById('calMicroseason');
+            const dynamicContainer = document.getElementById('calDynamicEvents');
+            
+            if (dynamicContainer) dynamicContainer.innerHTML = '';
+            
             if (currentMicroseason) {
-                document.getElementById('calMicroseason').innerText = currentYomi ? `${currentMicroseason}（${currentYomi}）` : currentMicroseason;
+                msElement.innerText = currentMicroseason;
+                if (currentYomi) {
+                    // ふりがな行を作成
+                    msElement.style.marginLeft = '3px'; // 読みとの隙間を極力狭める（7px → 3px）
+                    
+                    const pYomi = document.createElement('p');
+                    pYomi.className = 'cal-line sub-info';
+                    // 読みと次のイベント（祝日など）との隙間は少し広げて区別（10px）
+                    pYomi.style.marginLeft = '10px'; 
+                    pYomi.style.fontSize = '11px';   // よみがなは少し小さく
+                    pYomi.innerText = `（${currentYomi}）`;
+                    if (dynamicContainer) dynamicContainer.appendChild(pYomi);
+                } else {
+                    msElement.style.marginLeft = '7px'; // 読みがない場合は標準の隙間
+                }
             } else {
-                document.getElementById('calMicroseason').innerText = '';
+                msElement.innerText = '';
+                msElement.style.marginLeft = '7px';
             }
             
-            // ▼ イベント類を「・」で分割して横に並べる処理 ▼
-            const dynamicContainer = document.getElementById('calDynamicEvents');
             if (dynamicContainer) {
-                dynamicContainer.innerHTML = '';
-                
                 const addEvents = (textStr, isHoliday) => {
                     if (!textStr) return;
                     textStr.split('・').forEach(item => {
@@ -725,15 +736,15 @@ window.koyomiDataReceived = function(data) {
                         if (!text) return;
                         const p = document.createElement('p');
                         p.className = 'cal-line sub-info';
-                        if (isHoliday) p.classList.add('holiday-text');
+                        if (isHoliday) p.classList.add('holiday-text'); // 祝日は朱色
                         p.innerText = text;
                         dynamicContainer.appendChild(p);
                     });
                 };
 
-                addEvents(getVal(todayRow, 5), true);  // 祝日（F列）
-                addEvents(getVal(todayRow, 4), false); // 雑節（E列）
-                addEvents(getVal(todayRow, 6), false); // 俳句イベント（G列）
+                addEvents(getVal(todayRow, 5), true);  // 祝日
+                addEvents(getVal(todayRow, 4), false); // 雑節
+                addEvents(getVal(todayRow, 6), false); // 俳句イベント
             }
         }
     } catch (e) { console.error(e); }
