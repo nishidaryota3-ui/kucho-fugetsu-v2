@@ -1,7 +1,7 @@
 const SPREADSHEET_ID = '1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg';
 const SAIJIKI_SPREADSHEET_ID = '1EOmZn53hFA8GpVdcn--aU-lj9uHjGQpnSZ1o9jbnsYs';
-// ▼ ここに新しい暦データベースのIDを追加 ▼
-const KOYOMI_SPREADSHEET_ID = '1JvaQ_K8tDi_ajEnKbHmuoVu2i3MrmcO39p1m2CelWEA'; 
+// ▼ 新しい暦データベースのIDに差し替えました ▼
+const KOYOMI_SPREADSHEET_ID = '1xYYzjR_k9gnkHtZXEmI8fBLUoDyUQnEWUrHo1DUIBD0'; 
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwgm4eh8qZGRxvFS8_b8iEJAC9vRGw31gOvjgsPQMPc1ymU4oKonErvUkL0Ucf6xnZO/exec';
 
 let saijikiDatabase = []; 
@@ -640,7 +640,7 @@ function renderTodayCalendar() {
 // ▼▼ トップ画面カレンダー：スプレッドシートから「暦データベース」を読み込む ▼▼
 function fetchKoyomiData() {
     const script = document.createElement('script');
-    // ↓ SAIJIKI_SPREADSHEET_ID を KOYOMI_SPREADSHEET_ID に変更
+    // 新しいスプレッドシートのIDを参照する
     script.src = `https://docs.google.com/spreadsheets/d/${KOYOMI_SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
     document.body.appendChild(script);
 }
@@ -682,7 +682,15 @@ window.koyomiDataReceived = function(data) {
             
             document.getElementById('calLunar').innerText = getVal(1);       // 旧暦
             document.getElementById('calSolarTerm').innerText = getVal(2);   // 二十四節気
-            document.getElementById('calMicroseason').innerText = getVal(3); // 七十二候
+            
+            // ▼ 七十二候（D列/インデックス3）と読み（H列/インデックス7）を合体させる処理 ▼
+            const microseason = getVal(3);
+            const yomi = getVal(7);
+            if (microseason) {
+                document.getElementById('calMicroseason').innerText = yomi ? `${microseason}（${yomi}）` : microseason;
+            } else {
+                document.getElementById('calMicroseason').innerText = '';
+            }
             
             // ▼ イベント類を「・」で分割して別々の行（左への横並び）にする処理 ▼
             const dynamicContainer = document.getElementById('calDynamicEvents');
