@@ -1,5 +1,7 @@
 const SPREADSHEET_ID = '1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg';
 const SAIJIKI_SPREADSHEET_ID = '1EOmZn53hFA8GpVdcn--aU-lj9uHjGQpnSZ1o9jbnsYs';
+// ▼ ここに新しい暦データベースのIDを追加 ▼
+const KOYOMI_SPREADSHEET_ID = '1JvaQ_K8tDi_ajEnKbHmuoVu2i3MrmcO39p1m2CelWEA'; 
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwgm4eh8qZGRxvFS8_b8iEJAC9vRGw31gOvjgsPQMPc1ymU4oKonErvUkL0Ucf6xnZO/exec';
 
 let saijikiDatabase = []; 
@@ -638,7 +640,8 @@ function renderTodayCalendar() {
 // ▼▼ トップ画面カレンダー：スプレッドシートから「暦データベース」を読み込む ▼▼
 function fetchKoyomiData() {
     const script = document.createElement('script');
-    script.src = `https://docs.google.com/spreadsheets/d/${SAIJIKI_SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
+    // ↓ SAIJIKI_SPREADSHEET_ID を KOYOMI_SPREADSHEET_ID に変更
+    script.src = `https://docs.google.com/spreadsheets/d/${KOYOMI_SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
     document.body.appendChild(script);
 }
 
