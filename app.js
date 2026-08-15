@@ -1,6 +1,6 @@
 const SPREADSHEET_ID = '1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg';
 const SAIJIKI_SPREADSHEET_ID = '1EOmZn53hFA8GpVdcn--aU-lj9uHjGQpnSZ1o9jbnsYs';
-// ▼ 新しい暦データベースのIDに差し替えました ▼
+// ▼ 新しい暦データベースのID ▼
 const KOYOMI_SPREADSHEET_ID = '1xYYzjR_k9gnkHtZXEmI8fBLUoDyUQnEWUrHo1DUIBD0'; 
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwgm4eh8qZGRxvFS8_b8iEJAC9vRGw31gOvjgsPQMPc1ymU4oKonErvUkL0Ucf6xnZO/exec';
 
@@ -90,7 +90,6 @@ window.onload = function() {
     initSwipeEvents();
     initKeyboardEvents();
     
-    // アプリ起動時にカレンダー部分を生成・取得
     renderTodayCalendar();
     fetchKoyomiData();
 
@@ -624,15 +623,12 @@ function renderTodayCalendar() {
     const month = today.getMonth() + 1;
     const date = today.getDate();
     
-    // 年号の計算
     const eraYear = year - 2018; 
     const eraStr = eraYear === 1 ? "元" : toKanjiNum(eraYear.toString());
     document.getElementById('calEraYear').innerText = `令和${eraStr}年`;
     
-    // 日付をセット
     document.getElementById('calGregorianDate').innerText = `${toKanjiNum(month.toString())}月${toKanjiNum(date.toString())}日`;
 
-    // 陽暦の和風月名
     const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
     document.getElementById('calWafu').innerText = `（${wafuList[month - 1]}）`;
 }
@@ -640,7 +636,6 @@ function renderTodayCalendar() {
 // ▼▼ トップ画面カレンダー：スプレッドシートから「暦データベース」を読み込む ▼▼
 function fetchKoyomiData() {
     const script = document.createElement('script');
-    // 新しいスプレッドシートのIDを参照する
     script.src = `https://docs.google.com/spreadsheets/d/${KOYOMI_SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
     document.body.appendChild(script);
 }
@@ -653,6 +648,7 @@ window.koyomiDataReceived = function(data) {
         const rows = data.table.rows;
         
         let todayRow = null;
+        let todayIndex = -1;
         
         for (let i = 0; i < rows.length; i++) {
             const c = rows[i].c;
@@ -673,48 +669,71 @@ window.koyomiDataReceived = function(data) {
             
             if (dateVal === todayStr) {
                 todayRow = c;
+                todayIndex = i;
                 break;
             }
         }
 
         if (todayRow) {
-            const getVal = (idx) => (todayRow[idx] && todayRow[idx].v !== null) ? String(todayRow[idx].v).trim() : '';
+            const getVal = (rowC, idx) => (rowC && rowC[idx] && rowC[idx].v !== null) ? String(rowC[idx].v).trim() : '';
             
-            document.getElementById('calLunar').innerText = getVal(1);       // 旧暦
-            document.getElementById('calSolarTerm').innerText = getVal(2);   // 二十四節気
+            document.getElementById('calLunar').innerText = getVal(todayRow, 1);       // 今日の旧暦
             
-            // ▼ 七十二候（D列/インデックス3）と読み（H列/インデックス7）を合体させる処理 ▼
-            const microseason = getVal(3);
-            const yomi = getVal(7);
-            if (microseason) {
-                document.getElementById('calMicroseason').innerText = yomi ? `${microseason}（${yomi}）` : microseason;
+            // ▼ 直近の二十四節気と七十二候を過去に遡って探す処理 ▼
+            let currentSekki = '';
+            let currentMicroseason = '';
+            let currentYomi = '';
+            
+            // 今日の行から上に（過去に）向かってループ
+            for (let i = todayIndex; i >= 0; i--) {
+                const rowC = rows[i].c;
+                if (!rowC) continue;
+                
+                // まだ節気が見つかっておらず、かつその行に節気がある場合
+                if (!currentSekki && getVal(rowC, 2)) {
+                    currentSekki = getVal(rowC, 2);
+                }
+                
+                // まだ七十二候が見つかっておらず、かつその行に七十二候がある場合
+                if (!currentMicroseason && getVal(rowC, 3)) {
+                    currentMicroseason = getVal(rowC, 3);
+                    currentYomi = getVal(rowC, 7); // H列の読み仮名を取得
+                }
+                
+                // 両方見つかったら探索を終了
+                if (currentSekki && currentMicroseason) break;
+            }
+
+            document.getElementById('calSolarTerm').innerText = currentSekki;
+            
+            // 七十二候と読みを合体して表示
+            if (currentMicroseason) {
+                document.getElementById('calMicroseason').innerText = currentYomi ? `${currentMicroseason}（${currentYomi}）` : currentMicroseason;
             } else {
                 document.getElementById('calMicroseason').innerText = '';
             }
             
-            // ▼ イベント類を「・」で分割して別々の行（左への横並び）にする処理 ▼
+            // ▼ イベント類を「・」で分割して横に並べる処理 ▼
             const dynamicContainer = document.getElementById('calDynamicEvents');
             if (dynamicContainer) {
-                dynamicContainer.innerHTML = ''; // 一旦クリア
+                dynamicContainer.innerHTML = '';
                 
                 const addEvents = (textStr, isHoliday) => {
                     if (!textStr) return;
-                    // 「・」で分割してそれぞれ新しい行として追加
                     textStr.split('・').forEach(item => {
                         const text = item.trim();
                         if (!text) return;
                         const p = document.createElement('p');
                         p.className = 'cal-line sub-info';
-                        if (isHoliday) p.classList.add('holiday-text'); // 祝日なら朱色クラスをつける
+                        if (isHoliday) p.classList.add('holiday-text');
                         p.innerText = text;
                         dynamicContainer.appendChild(p);
                     });
                 };
 
-                // 祝日 → 雑節 → 俳句イベント の順に左へ並べる
-                addEvents(getVal(5), true);  // 祝日（優しい朱色）
-                addEvents(getVal(4), false); // 雑節
-                addEvents(getVal(6), false); // 俳句イベント
+                addEvents(getVal(todayRow, 5), true);  // 祝日（F列）
+                addEvents(getVal(todayRow, 4), false); // 雑節（E列）
+                addEvents(getVal(todayRow, 6), false); // 俳句イベント（G列）
             }
         }
     } catch (e) { console.error(e); }
