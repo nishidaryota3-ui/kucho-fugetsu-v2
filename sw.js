@@ -1,4 +1,4 @@
-const CACHE_NAME = 'omikuji-app-cache-v3';  // ← v2からv3（または任意の違う名前）に変更
+const CACHE_NAME = 'omikuji-app-cache-v4';
 
 // 1. インストール時：アプリを構成するファイルをスマホに保存
 self.addEventListener('install', (event) => {
@@ -10,7 +10,10 @@ self.addEventListener('install', (event) => {
         './style.css',
         './app.js',
         './manifest.json',
-        './icon.png'
+        './icon.png',
+        './omikuji-cat.png',
+        './icon_top_input.png',
+        './icon_top_output.png'
       ]);
     })
   );
