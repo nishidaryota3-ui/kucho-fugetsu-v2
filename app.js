@@ -117,6 +117,11 @@ function restoreCachedMasterData() {
 }
 
 function fetchMainHaikuData() {
+    // 圏外の場合はネットワーク取得をスキップしてキャッシュだけで描画
+    if (!navigator.onLine) {
+        if (document.getElementById('readScreen').classList.contains('active')) renderYomuList();
+        return;
+    }
     const oldScript = document.getElementById('mainHaikuScript');
     if (oldScript) oldScript.remove();
     const script = document.createElement('script');
@@ -152,8 +157,9 @@ window.mainDataReceived = function(data) {
 
             const displayAuthor = author || '西田上酢';
             haikuHistory.push({
+                originalIndex: i, // ソート用の行番号を保持
                 phrase, author: displayAuthor, authorKana,
-                kigo: getVal(3), parentKigo: getVal(4),
+                kigo: getVal(3), parentKigo: getVal(4), parentKana: getVal(5),
                 season: getVal(6), detailSeason: getVal(7),
                 status: getVal(10) || '完成句', sakkuDate: getVal(11)
             });
@@ -173,6 +179,7 @@ window.mainDataReceived = function(data) {
 };
 
 function fetchSaijikiMasterData() {
+    if (!navigator.onLine) return; // 圏外ならスキップ
     const script = document.createElement('script');
     script.src = `https://docs.google.com/spreadsheets/d/${SAIJIKI_SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('歳時記データベース')}&range=A:F&tqx=responseHandler:saijikiDataReceived`;
     document.body.appendChild(script);
@@ -309,11 +316,16 @@ function renderYomuList() {
 
     targetHaikus.forEach(item => item._parsedDate = parseDateLabel(item.sakkuDate));
 
+    // ▼▼ 並べ替えロジックの修正：同着なら新しい行（originalIndex大）を先に ▼▼
     targetHaikus.sort((a, b) => {
         if (a._parsedDate.groupKey !== b._parsedDate.groupKey) {
             return b._parsedDate.groupKey.localeCompare(a._parsedDate.groupKey); 
         }
-        return b._parsedDate.exactKey.localeCompare(a._parsedDate.exactKey); 
+        if (a._parsedDate.exactKey !== b._parsedDate.exactKey) {
+            return b._parsedDate.exactKey.localeCompare(a._parsedDate.exactKey); 
+        }
+        // 日付が全く同じ場合、originalIndexが大きい（新しい）ものを先頭（一番右）にする
+        return (b.originalIndex || 0) - (a.originalIndex || 0);
     });
 
     let lastGroupKey = '';
@@ -360,17 +372,30 @@ window.onHaikuCardClicked = function(haikuObj) {
 
 function closeHaikuDetailModal() { document.getElementById('haikuDetailModal').classList.add('hidden'); }
 
+// ▼▼ オフライン時でも手元の句帳を即座に更新する対応 ▼▼
 function changeHaikuStatus(targetStatus) {
     if (!activeSelectedHaiku) return;
     closeHaikuDetailModal();
+
+    // 1. ローカルキャッシュを即座に更新
+    const idx = haikuHistory.findIndex(h => h.phrase === activeSelectedHaiku.phrase);
+    if (idx !== -1) {
+        haikuHistory[idx].status = targetStatus;
+        localStorage.setItem('hugetsu_haiku_db', JSON.stringify(haikuHistory));
+    }
+    if (document.getElementById('readScreen').classList.contains('active')) renderYomuList();
 
     const formData = new URLSearchParams();
     formData.append('action', 'changeStatus');
     formData.append('status', targetStatus);
     formData.append('oldPhrase', activeSelectedHaiku.phrase);
 
-    fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData.toString() })
-    .then(() => setTimeout(fetchMainHaikuData, 1000)).catch(() => setTimeout(fetchMainHaikuData, 1000));
+    if (!navigator.onLine) {
+        saveToOfflineQueue({ action: 'changeStatus', status: targetStatus, oldPhrase: activeSelectedHaiku.phrase });
+    } else {
+        fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData.toString() })
+        .then(() => setTimeout(fetchMainHaikuData, 1000)).catch(() => setTimeout(fetchMainHaikuData, 1000));
+    }
 }
 
 function deleteSelectedDraft() {
@@ -378,12 +403,21 @@ function deleteSelectedDraft() {
     if (!confirm('本当に削除しますか？\n（句帳から完全に消去されます）')) return;
     closeHaikuDetailModal();
 
+    // 1. ローカルキャッシュから即座に削除
+    haikuHistory = haikuHistory.filter(h => h.phrase !== activeSelectedHaiku.phrase);
+    localStorage.setItem('hugetsu_haiku_db', JSON.stringify(haikuHistory));
+    if (document.getElementById('readScreen').classList.contains('active')) renderYomuList();
+
     const formData = new URLSearchParams();
     formData.append('action', 'delete');
     formData.append('oldPhrase', activeSelectedHaiku.phrase);
 
-    fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData.toString() })
-    .then(() => setTimeout(fetchMainHaikuData, 1000)).catch(() => setTimeout(fetchMainHaikuData, 1000));
+    if (!navigator.onLine) {
+        saveToOfflineQueue({ action: 'delete', oldPhrase: activeSelectedHaiku.phrase });
+    } else {
+        fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData.toString() })
+        .then(() => setTimeout(fetchMainHaikuData, 1000)).catch(() => setTimeout(fetchMainHaikuData, 1000));
+    }
 }
 
 function triggerRandomOmikuji() {
@@ -530,6 +564,7 @@ function goToStep3() {
     goToStep(3);
 }
 
+// ▼▼ オフライン保存時のローカル即時反映対応 ▼▼
 function submitHaiku(statusType) {
     const kanseiBtn = document.getElementById('submitKanseiBtn');
     const shitagakiBtn = document.getElementById('submitShitagakiBtn');
@@ -539,6 +574,37 @@ function submitHaiku(statusType) {
 
     document.getElementById('completeTitle').innerText = `${statusType}として保存しました`;
 
+    // 1. ローカルキャッシュに即座に追加・修正を反映
+    const newHaiku = {
+        phrase: currentHaikuData.phrase,
+        author: currentHaikuData.author,
+        authorKana: currentHaikuData.authorKana,
+        kigo: currentHaikuData.kigo || currentHaikuData.parentKigo,
+        parentKigo: currentHaikuData.parentKigo,
+        parentKana: currentHaikuData.parentKana,
+        season: currentHaikuData.season,
+        detailSeason: currentHaikuData.detailSeason,
+        status: statusType,
+        sakkuDate: currentHaikuData.sakkuDate,
+        originalIndex: Date.now() // 新しいものとして大きな値を入れる（同着ソートで一番右に持ってくるため）
+    };
+
+    if (currentHaikuData.oldPhrase) {
+        // 修正の場合
+        const idx = haikuHistory.findIndex(h => h.phrase === currentHaikuData.oldPhrase);
+        if (idx !== -1) {
+            newHaiku.originalIndex = haikuHistory[idx].originalIndex; // 順番は維持
+            haikuHistory[idx] = newHaiku;
+        } else {
+            haikuHistory.push(newHaiku);
+        }
+    } else {
+        // 新規の場合
+        haikuHistory.push(newHaiku);
+    }
+    localStorage.setItem('hugetsu_haiku_db', JSON.stringify(haikuHistory));
+
+    // 2. サーバー送信処理
     const formData = new URLSearchParams();
     formData.append('action', 'save');
     formData.append('phrase', currentHaikuData.phrase);
@@ -547,7 +613,7 @@ function submitHaiku(statusType) {
     formData.append('authorKana', currentHaikuData.authorKana);
     formData.append('kigo', currentHaikuData.kigo || currentHaikuData.parentKigo);
     formData.append('parentKigo', currentHaikuData.parentKigo);
-    formData.append('parentKana', currentHaikuData.parentKana);
+    formData.append('parentKana', currentHaikuData.parentKana || '');
     formData.append('season', currentHaikuData.season);
     formData.append('detailSeason', currentHaikuData.detailSeason);
     formData.append('status', statusType);
@@ -558,23 +624,26 @@ function submitHaiku(statusType) {
         if (isResolved) return;
         isResolved = true;
         if (isOfflineFallback) {
-            saveToOfflineQueue({ ...currentHaikuData, status: statusType });
+            saveToOfflineQueue({ ...currentHaikuData, action: 'save', status: statusType });
         }
-        setTimeout(fetchMainHaikuData, 1000); 
+        if (navigator.onLine) setTimeout(fetchMainHaikuData, 1000); 
         goToStep(4);
     };
 
-    const timeoutId = setTimeout(() => finalize(true), 8000);
-
-    fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData.toString() })
-    .then(() => {
-        clearTimeout(timeoutId);
-        finalize(false);
-    })
-    .catch(() => {
-        clearTimeout(timeoutId);
+    if (!navigator.onLine) {
         finalize(true);
-    });
+    } else {
+        const timeoutId = setTimeout(() => finalize(true), 8000);
+        fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData.toString() })
+        .then(() => {
+            clearTimeout(timeoutId);
+            finalize(false);
+        })
+        .catch(() => {
+            clearTimeout(timeoutId);
+            finalize(true);
+        });
+    }
 }
 
 function finishAndReturn() {
@@ -632,8 +701,15 @@ function renderTodayCalendar() {
     document.getElementById('calWafu').innerText = `（${wafuList[month - 1]}）`;
 }
 
-// ▼▼ トップ画面カレンダー：スプレッドシートから「暦データベース」を読み込む ▼▼
+// ▼▼ トップ画面カレンダー：オフライン時のキャッシュ対応 ▼▼
 function fetchKoyomiData() {
+    if (!navigator.onLine) {
+        try {
+            const cached = localStorage.getItem('hugetsu_koyomi_db');
+            if (cached) renderKoyomiFromData(JSON.parse(cached));
+        } catch (e) {}
+        return;
+    }
     const script = document.createElement('script');
     script.src = `https://docs.google.com/spreadsheets/d/${KOYOMI_SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
     document.body.appendChild(script);
@@ -642,7 +718,14 @@ function fetchKoyomiData() {
 window.koyomiDataReceived = function(data) {
     try {
         if (!data || !data.table || !data.table.rows) return;
-        
+        // データ取得成功時にローカルに保存（オフライン用）
+        localStorage.setItem('hugetsu_koyomi_db', JSON.stringify(data));
+        renderKoyomiFromData(data);
+    } catch (e) { console.error(e); }
+};
+
+function renderKoyomiFromData(data) {
+    try {
         const todayStr = getTodayDateString(); 
         const rows = data.table.rows;
         
@@ -676,14 +759,12 @@ window.koyomiDataReceived = function(data) {
         if (todayRow) {
             const getVal = (rowC, idx) => (rowC && rowC[idx] && rowC[idx].v !== null) ? String(rowC[idx].v).trim() : '';
             
-            document.getElementById('calLunar').innerText = getVal(todayRow, 1);       // 今日の旧暦
+            document.getElementById('calLunar').innerText = getVal(todayRow, 1);       
             
-            // ▼ 直近の二十四節気と七十二候を過去に遡って探す処理 ▼
             let currentSekki = '';
             let currentMicroseason = '';
             let currentYomi = '';
             
-            // 今日の行から上に（過去に）向かってループ
             for (let i = todayIndex; i >= 0; i--) {
                 const rowC = rows[i].c;
                 if (!rowC) continue;
@@ -710,18 +791,16 @@ window.koyomiDataReceived = function(data) {
             if (currentMicroseason) {
                 msElement.innerText = currentMicroseason;
                 if (currentYomi) {
-                    // ふりがな行を作成
-                    msElement.style.marginLeft = '3px'; // 読みとの隙間を極力狭める（7px → 3px）
+                    msElement.style.marginLeft = '3px'; 
                     
                     const pYomi = document.createElement('p');
                     pYomi.className = 'cal-line sub-info';
-                    // 読みと次のイベント（祝日など）との隙間は少し広げて区別（10px）
                     pYomi.style.marginLeft = '10px'; 
-                    pYomi.style.fontSize = '11px';   // よみがなは少し小さく
+                    pYomi.style.fontSize = '11px';   
                     pYomi.innerText = `（${currentYomi}）`;
                     if (dynamicContainer) dynamicContainer.appendChild(pYomi);
                 } else {
-                    msElement.style.marginLeft = '7px'; // 読みがない場合は標準の隙間
+                    msElement.style.marginLeft = '7px';
                 }
             } else {
                 msElement.innerText = '';
@@ -736,16 +815,16 @@ window.koyomiDataReceived = function(data) {
                         if (!text) return;
                         const p = document.createElement('p');
                         p.className = 'cal-line sub-info';
-                        if (isHoliday) p.classList.add('holiday-text'); // 祝日は朱色
+                        if (isHoliday) p.classList.add('holiday-text'); 
                         p.innerText = text;
                         dynamicContainer.appendChild(p);
                     });
                 };
 
-                addEvents(getVal(todayRow, 5), true);  // 祝日
-                addEvents(getVal(todayRow, 4), false); // 雑節
-                addEvents(getVal(todayRow, 6), false); // 俳句イベント
+                addEvents(getVal(todayRow, 5), true);  
+                addEvents(getVal(todayRow, 4), false); 
+                addEvents(getVal(todayRow, 6), false); 
             }
         }
     } catch (e) { console.error(e); }
-};
+}
