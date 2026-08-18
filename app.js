@@ -701,25 +701,28 @@ function renderTodayCalendar() {
     document.getElementById('calWafu').innerText = `（${wafuList[month - 1]}）`;
 }
 
-// ▼▼ トップ画面カレンダー：オフライン時のキャッシュ対応 ▼▼
+// ▼▼ トップ画面カレンダー：オフライン時のキャッシュ＆爆速表示対応 ▼▼
 function fetchKoyomiData() {
-    if (!navigator.onLine) {
-        try {
-            const cached = localStorage.getItem('hugetsu_koyomi_db');
-            if (cached) renderKoyomiFromData(JSON.parse(cached));
-        } catch (e) {}
-        return;
+    // 1. ネット環境に関わらず、まずはスマホ内に保存されている前回のデータがあれば【一瞬で】表示する
+    try {
+        const cached = localStorage.getItem('hugetsu_koyomi_db');
+        if (cached) renderKoyomiFromData(JSON.parse(cached));
+    } catch (e) {}
+
+    // 2. 電波が繋がっていれば、裏側でこっそり最新のデータを取得しにいく（画面の表示を待たせない）
+    if (navigator.onLine) {
+        const script = document.createElement('script');
+        script.src = `https://docs.google.com/spreadsheets/d/${KOYOMI_SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
+        document.body.appendChild(script);
     }
-    const script = document.createElement('script');
-    script.src = `https://docs.google.com/spreadsheets/d/${KOYOMI_SPREADSHEET_ID}/gviz/tq?sheet=${encodeURIComponent('暦データベース')}&tqx=responseHandler:koyomiDataReceived`;
-    document.body.appendChild(script);
 }
 
 window.koyomiDataReceived = function(data) {
     try {
         if (!data || !data.table || !data.table.rows) return;
-        // データ取得成功時にローカルに保存（オフライン用）
+        // 3. 最新のデータが届いたら、スマホ内の保存庫を最新版に上書きする
         localStorage.setItem('hugetsu_koyomi_db', JSON.stringify(data));
+        // 4. 最新データで画面をスッと更新する（すでに表示されているので違和感なし）
         renderKoyomiFromData(data);
     } catch (e) { console.error(e); }
 };
